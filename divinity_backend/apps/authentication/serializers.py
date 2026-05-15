@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=150, trim_whitespace=True)
+    email = serializers.EmailField(trim_whitespace=True)
     password = serializers.CharField(write_only=True, trim_whitespace=False, style={'input_type': 'password'})
 
 
@@ -25,3 +25,7 @@ class TokenPairSerializer(serializers.Serializer):
 class AuthSessionSerializer(serializers.Serializer):
     user = AuthenticatedUserSerializer(read_only=True)
     tokens = TokenPairSerializer(read_only=True)
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(trim_whitespace=True)

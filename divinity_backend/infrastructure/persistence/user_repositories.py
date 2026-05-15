@@ -22,9 +22,9 @@ class DjangoORMUserRepository(UserRepositoryInterface):
             is_superuser=user.is_superuser,
         )
 
-    def authenticate(self, username: str, password: str) -> Optional[AuthenticatedUser]:
+    def authenticate(self, email: str, password: str) -> Optional[AuthenticatedUser]:
         try:
-            user = UserModel.objects.get(username=username)
+            user = UserModel.objects.get(email__iexact=email)
         except UserModel.DoesNotExist:
             return None
 

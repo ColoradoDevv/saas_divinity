@@ -8,11 +8,11 @@ class SimpleJWTTokenProvider(TokenProviderInterface):
     def create_token_pair(self, user: AuthenticatedUser) -> TokenPair:
         refresh = RefreshToken()
         refresh['user_id'] = user.id
-        refresh['username'] = user.username
+        refresh['email'] = user.email
 
         access = refresh.access_token
         access['user_id'] = user.id
-        access['username'] = user.username
+        access['email'] = user.email
 
         return TokenPair(
             access=str(access),

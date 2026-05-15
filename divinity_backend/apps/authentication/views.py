@@ -1,6 +1,13 @@
+import logging
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from rest_framework import permissions, status
 from rest_framework.exceptions import AuthenticationFailed, NotFound
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from application.authentication.dtos import LoginDTO
@@ -9,11 +16,21 @@ from domain.authentication.exceptions import InvalidCredentialsError, UserNotFou
 from infrastructure.authentication.jwt import SimpleJWTTokenProvider
 from infrastructure.persistence.user_repositories import DjangoORMUserRepository
 
-from .serializers import AuthSessionSerializer, AuthenticatedUserSerializer, LoginSerializer
+from .serializers import (
+    AuthSessionSerializer,
+    AuthenticatedUserSerializer,
+    ForgotPasswordSerializer,
+    LoginSerializer,
+)
+
+logger = logging.getLogger(__name__)
+UserModel = get_user_model()
 
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -55,3 +72,29 @@ class MeView(APIView):
 
         output = AuthenticatedUserSerializer(user.to_primitives()).data
         return Response(output, status=status.HTTP_200_OK)
+
+
+class ForgotPasswordView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        # Siempre responde 200 para prevenir enumeración de correos
+        try:
+            user = UserModel.objects.get(email__iexact=email, is_active=True)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            # TODO: integrar con servicio de email real (Celery + SES/SendGrid)
+            logger.info('Password reset requested for %s — uid=%s token=%s', email, uid, token)
+        except UserModel.DoesNotExist:
+            pass
+
+        return Response(
+            {'detail': 'Si el correo existe, recibirás las instrucciones en breve.'},
+            status=status.HTTP_200_OK,
+        )

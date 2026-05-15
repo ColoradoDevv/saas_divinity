@@ -21,7 +21,7 @@ class ClientRepositoryInterface(ABC):
 
 class UserRepositoryInterface(ABC):
     @abstractmethod
-    def authenticate(self, username: str, password: str) -> Optional[AuthenticatedUser]:
+    def authenticate(self, email: str, password: str) -> Optional[AuthenticatedUser]:
         raise NotImplementedError
 
     @abstractmethod

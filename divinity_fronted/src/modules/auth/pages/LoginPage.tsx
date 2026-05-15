@@ -1,35 +1,77 @@
-import { useState, type FormEvent } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
+import loginBackground from '@/assets/images/bg.jpg';
 import { useAuthStore } from '@/app/store/auth';
-import { useLogin } from '../hooks/useLogin';
+import {
+  md3BodyLargeClass,
+  md3BodyMediumClass,
+  md3ErrorBannerClass,
+  md3FilledButtonClass,
+  md3HeadlineSmallClass,
+  md3InputLabelClass,
+  md3LabelLargeClass,
+  md3SurfaceClass,
+  md3TextButtonClass,
+  md3TextFieldClass,
+} from '@/shared/ui/material';
 
-// ─── Paleta ergonómica ────────────────────────────────────────────────────────
-// Fondo principal:   #F5F4F1  (off-white cálido — no fatiga el ojo)
-// Fondo secundario:  #EDECEA  (stone claro — sidebars, surfaces)
-// Borde:             #D8D5CF  (warm border — contraste suave)
-// Texto principal:   #3D3D3C  (charcoal — no negro puro, evita contraste extremo)
-// Texto secundario:  #74716B  (stone mid — labels, metadata)
-// Texto terciario:   #B0ADA7  (stone light — placeholders, hints)
-// Acento:            #4B6A8A  (slate blue desaturado — CTA, focus, links)
-// Superficie blanca: #FFFFFF  (inputs y tarjetas elevadas solamente)
-// ─────────────────────────────────────────────────────────────────────────────
+import { useLogin } from '../hooks/useLogin';
+import type { LoginPayload } from '../types/auth';
 
 interface LocationState {
   from?: { pathname?: string };
 }
 
+interface ErrorWithDetail {
+  response?: {
+    data?: {
+      detail?: string;
+    };
+  };
+}
+
 const getErrorMessage = (error: unknown): string => {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'response' in error &&
-    typeof (error as any).response?.data?.detail === 'string'
-  ) {
-    return (error as any).response.data.detail;
-  }
+  const detail = (error as ErrorWithDetail).response?.data?.detail;
+  if (typeof detail === 'string') return detail;
   return 'No se pudo iniciar sesión. Verifica tus credenciales e intenta de nuevo.';
 };
+
+const EyeIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -37,8 +79,9 @@ export const LoginPage = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const loginMutation = useLogin();
 
-  const [formData, setFormData] = useState({ username: '', password: '' });
+  const [formData, setFormData] = useState<LoginPayload>({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const locationState = location.state as LocationState | null;
   const redirectTo = locationState?.from?.pathname || '/dashboard';
@@ -47,289 +90,135 @@ export const LoginPage = () => {
     return <Navigate to={redirectTo} replace />;
   }
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
-    await loginMutation.mutateAsync(formData);
-    navigate(redirectTo, { replace: true });
+    try {
+      await loginMutation.mutateAsync({ payload: formData, rememberMe });
+      navigate(redirectTo, { replace: true });
+    } catch {
+      // El error se muestra via loginMutation.isError
+    }
   };
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono&display=swap');
+    <div
+      className="grid min-h-screen place-items-center bg-cover bg-center px-4 py-8"
+      style={{
+        backgroundImage: `linear-gradient(rgba(25, 28, 32, 0.42), rgba(25, 28, 32, 0.42)), url(${loginBackground})`,
+      }}
+    >
+      <section
+        className={`${md3SurfaceClass} w-full max-w-[440px] bg-surface/92 px-6 py-8 backdrop-blur-md sm:px-8 sm:py-10`}
+      >
+        <header>
+          <span className={`text-primary ${md3LabelLargeClass}`}>Bienvenido de vuelta</span>
+          <h1 className={`mt-3 ${md3HeadlineSmallClass}`}>Inicia sesión</h1>
+          <p className={`mt-2 text-on-surface-variant ${md3BodyLargeClass}`}>
+            Ingresa tus credenciales para continuar al panel principal.
+          </p>
+        </header>
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        <form className="mt-8 space-y-4" onSubmit={handleSubmit} noValidate>
+          <div>
+            <label htmlFor="email" className={md3InputLabelClass}>
+              Correo electrónico
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              placeholder="nombre@empresa.com"
+              value={formData.email}
+              onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+              className={md3TextFieldClass}
+              required
+              maxLength={254}
+              aria-required="true"
+              aria-invalid={loginMutation.isError}
+            />
+          </div>
 
-        .dvt-root {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #EDECEA;
-          font-family: 'DM Sans', sans-serif;
-          padding: 24px;
-        }
-
-        .dvt-card {
-          display: flex;
-          width: 100%;
-          max-width: 880px;
-          min-height: 540px;
-          border-radius: 14px;
-          overflow: hidden;
-          border: 0.5px solid #D8D5CF;
-        }
-
-        /* ── Panel izquierdo ── */
-        .dvt-left {
-          width: 42%;
-          background: #F5F4F1;
-          border-right: 0.5px solid #D8D5CF;
-          padding: 40px 36px;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-        }
-
-        .dvt-brand { display: flex; align-items: center; gap: 10px; }
-        .dvt-brand-mark {
-          width: 28px; height: 28px;
-          border-radius: 7px;
-          background: #4B6A8A;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-        }
-        .dvt-brand-name { font-size: 14px; font-weight: 500; color: #3D3D3C; letter-spacing: 0.01em; }
-
-        .dvt-left-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 36px 0; }
-
-        .dvt-tagline {
-          font-family: 'Instrument Serif', serif;
-          font-style: italic;
-          font-size: 26px;
-          color: #3D3D3C;
-          line-height: 1.38;
-          margin-bottom: 28px;
-        }
-        .dvt-tagline-accent { color: #4B6A8A; font-style: normal; }
-
-        .dvt-items { display: flex; flex-direction: column; }
-        .dvt-item {
-          display: flex; align-items: flex-start; gap: 12px;
-          padding: 13px 0;
-          border-top: 0.5px solid #D8D5CF;
-        }
-        .dvt-item:last-child { border-bottom: 0.5px solid #D8D5CF; }
-        .dvt-item-icon {
-          width: 26px; height: 26px;
-          border-radius: 6px;
-          background: #EDECEA;
-          border: 0.5px solid #D8D5CF;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-          margin-top: 1px;
-        }
-        .dvt-item-title { font-size: 12px; font-weight: 500; color: #3D3D3C; margin-bottom: 1px; }
-        .dvt-item-text  { font-size: 12px; color: #74716B; line-height: 1.55; }
-
-        .dvt-left-foot {
-          font-family: 'DM Mono', monospace;
-          font-size: 10px; color: #B0ADA7; letter-spacing: 0.03em;
-        }
-
-        /* ── Panel derecho ── */
-        .dvt-right {
-          flex: 1;
-          background: #F5F4F1;
-          padding: 52px 44px;
-          display: flex; flex-direction: column; justify-content: center;
-        }
-
-        .dvt-sup {
-          font-size: 10px; font-weight: 500;
-          letter-spacing: 0.12em; text-transform: uppercase;
-          color: #4B6A8A; margin-bottom: 10px; display: block;
-        }
-        .dvt-right h2 {
-          font-family: 'Instrument Serif', serif;
-          font-size: 28px; color: #3D3D3C; line-height: 1.2; margin-bottom: 6px;
-        }
-        .dvt-right-sub { font-size: 13px; color: #74716B; margin-bottom: 30px; line-height: 1.5; }
-
-        .dvt-field { margin-bottom: 16px; }
-        .dvt-field label {
-          display: block;
-          font-size: 11px; font-weight: 500;
-          letter-spacing: 0.06em; text-transform: uppercase;
-          color: #74716B; margin-bottom: 7px;
-        }
-        .dvt-field input {
-          width: 100%; height: 40px;
-          border: 1px solid #D8D5CF; border-radius: 7px;
-          background: #FFFFFF;
-          padding: 0 14px;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 14px; color: #3D3D3C;
-          outline: none;
-          transition: border-color 0.15s;
-        }
-        .dvt-field input:hover  { border-color: #B0ADA7; }
-        .dvt-field input:focus  { border-color: #4B6A8A; }
-        .dvt-field input::placeholder { color: #C5C1BA; }
-
-        .dvt-row {
-          display: flex; align-items: center; justify-content: space-between;
-          margin-bottom: 22px; margin-top: -4px;
-        }
-        .dvt-remember {
-          display: flex; align-items: center; gap: 7px;
-          font-size: 12px; color: #74716B; cursor: pointer; user-select: none;
-        }
-        .dvt-remember input[type='checkbox'] {
-          width: 14px; height: 14px; accent-color: #4B6A8A; cursor: pointer;
-        }
-        .dvt-forgot {
-          font-size: 12px; color: #4B6A8A; text-decoration: none;
-          background: none; border: none; cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-        }
-        .dvt-forgot:hover { text-decoration: underline; }
-
-        .dvt-error {
-          border: 1px solid #E8C9C9; background: #FBF2F2;
-          border-radius: 7px; padding: 10px 14px;
-          font-size: 13px; color: #7A3535;
-          margin-bottom: 14px; line-height: 1.5;
-        }
-
-        .dvt-btn {
-          width: 100%; height: 42px;
-          background: #3D3D3C; border: none; border-radius: 7px;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 13px; font-weight: 500;
-          color: #F5F4F1; cursor: pointer; letter-spacing: 0.03em;
-          transition: background 0.15s, opacity 0.15s;
-        }
-        .dvt-btn:hover:not(:disabled) { background: #2a2a29; }
-        .dvt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .dvt-sep { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
-        .dvt-sep-line { flex: 1; height: 0.5px; background: #D8D5CF; }
-        .dvt-sep-txt { font-size: 11px; color: #B0ADA7; font-family: 'DM Mono', monospace; }
-
-        .dvt-sso {
-          width: 100%; height: 40px;
-          background: #FFFFFF; border: 1px solid #D8D5CF; border-radius: 7px;
-          font-family: 'DM Sans', sans-serif; font-size: 13px; color: #74716B;
-          cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px;
-          transition: border-color 0.15s, color 0.15s;
-        }
-        .dvt-sso:hover { border-color: #B0ADA7; color: #3D3D3C; }
-
-        .dvt-note {
-          margin-top: 24px; font-size: 11px; color: #B0ADA7;
-          font-family: 'DM Mono', monospace; text-align: center; letter-spacing: 0.02em;
-        }
-
-        @media (max-width: 660px) {
-          .dvt-card { flex-direction: column; }
-          .dvt-left {
-            width: 100%; border-right: none;
-            border-bottom: 0.5px solid #D8D5CF; padding: 28px 24px;
-          }
-          .dvt-left-body { padding: 24px 0; }
-          .dvt-right { padding: 36px 24px; }
-        }
-      `}</style>
-
-      <div className="dvt-root">
-        <div className="dvt-card">
-
-          {/* ── Panel derecho ── */}
-          <section className="dvt-right">
-            <span className="dvt-sup">Bienvenido de vuelta</span>
-            <h2>Inicia sesión</h2>
-            <p className="dvt-right-sub">Ingresa tus credenciales para continuar.</p>
-
-            <form onSubmit={handleSubmit}>
-              <div className="dvt-field">
-                <label htmlFor="username">Correo electrónico</label>
-                <input
-                  id="username"
-                  name="username"
-                  type="email"
-                  autoComplete="username"
-                  placeholder="nombre@empresa.com"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, username: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-
-              <div className="dvt-field">
-                <label htmlFor="password">Contraseña</label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="••••••••••"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, password: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-
-              <div className="dvt-row">
-                <label className="dvt-remember">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                  />
-                  Recordarme
-                </label>
-                <button type="button" className="dvt-forgot">
-                  ¿Olvidaste tu contraseña?
-                </button>
-              </div>
-
-              {loginMutation.isError && (
-                <div className="dvt-error">
-                  {getErrorMessage(loginMutation.error)}
-                </div>
-              )}
-
-              <button type="submit" className="dvt-btn" disabled={loginMutation.isPending}>
-                {loginMutation.isPending ? 'Iniciando sesión...' : 'Iniciar sesión'}
+          <div>
+            <label htmlFor="password" className={md3InputLabelClass}>
+              Contraseña
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                className={md3TextFieldClass}
+                style={{ paddingRight: '3rem' }}
+                required
+                minLength={8}
+                maxLength={128}
+                aria-required="true"
+                aria-invalid={loginMutation.isError}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-on-surface-variant transition hover:bg-on-surface/8 hover:text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
-            </form>
-
-            <div className="dvt-sep">
-              <div className="dvt-sep-line" />
-              <span className="dvt-sep-txt">o continúa con</span>
-              <div className="dvt-sep-line" />
             </div>
+          </div>
 
-            <button type="button" className="dvt-sso">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="1" width="6" height="6" rx="1" fill="#4285F4" />
-                <rect x="9" y="1" width="6" height="6" rx="1" fill="#EA4335" />
-                <rect x="1" y="9" width="6" height="6" rx="1" fill="#34A853" />
-                <rect x="9" y="9" width="6" height="6" rx="1" fill="#FBBC05" />
-              </svg>
-              Continuar con Google
-            </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <label
+              className={`flex cursor-pointer items-center gap-3 pl-1 text-on-surface-variant ${md3BodyMediumClass}`}
+            >
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-[18px] w-[18px] cursor-pointer rounded-[2px] border-outline text-primary focus:ring-primary/20"
+              />
+              Recordarme
+            </label>
 
-            <p className="dvt-note">Acceso restringido · solo personal autorizado</p>
-          </section>
+            <Link to="/forgot-password" className={md3TextButtonClass}>
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
 
-        </div>
-      </div>
-    </>
+          {loginMutation.isError && (
+            <div className={md3ErrorBannerClass} role="alert" aria-live="polite">
+              {getErrorMessage(loginMutation.error)}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className={`${md3FilledButtonClass} w-full`}
+            disabled={loginMutation.isPending}
+            aria-busy={loginMutation.isPending}
+          >
+            {loginMutation.isPending ? (
+              <>
+                <span
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-on-primary/30 border-t-on-primary"
+                  aria-hidden="true"
+                />
+                Iniciando sesión...
+              </>
+            ) : (
+              'Iniciar sesión'
+            )}
+          </button>
+        </form>
+
+        <p className={`mt-6 text-center text-on-surface-variant ${md3BodyMediumClass}`}>
+          Solo personal autorizado
+        </p>
+      </section>
+    </div>
   );
 };

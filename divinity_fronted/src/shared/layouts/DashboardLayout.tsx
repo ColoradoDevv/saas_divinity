@@ -2,6 +2,16 @@ import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '@/app/store/auth';
+import {
+  md3BodyMediumClass,
+  md3HeadlineSmallClass,
+  md3LabelLargeClass,
+  md3LabelMediumClass,
+  md3NavItemClass,
+  md3PageClass,
+  md3TextButtonClass,
+  md3TitleLargeClass,
+} from '@/shared/ui/material';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -26,45 +36,59 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   };
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div>
-          <span className="eyebrow">Divinity SaaS</span>
-          <h2 className="sidebar-title">Secure workspace</h2>
-          <p className="sidebar-copy">
-            JWT session active for <strong>{user?.username ?? 'unknown user'}</strong>.
-          </p>
+    <div className="min-h-screen bg-background text-on-background lg:grid lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="border-b border-outline-variant bg-surface lg:border-b-0 lg:border-r">
+        <div className="flex h-full flex-col px-4 py-6">
+          <div className="rounded-[28px] bg-primary-container px-5 py-5 text-on-primary-container">
+            <span className="text-[0.6875rem] leading-4 font-medium tracking-[0.03125rem] uppercase">
+              Divinity SaaS
+            </span>
+            <h2 className={`mt-3 ${md3TitleLargeClass}`}>Secure workspace</h2>
+            <p className={`mt-2 max-w-xs text-on-primary-container/80 ${md3BodyMediumClass}`}>
+              JWT session active for <strong>{user?.username ?? 'unknown user'}</strong>.
+            </p>
+          </div>
+
+          <nav className="mt-6 space-y-1" aria-label="Primary navigation">
+            {navigation.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `${md3NavItemClass(isActive)} ${md3LabelLargeClass}`}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="mt-auto rounded-[16px] bg-surface-container px-4 py-4">
+            <p className={`text-on-surface-variant ${md3LabelMediumClass}`}>Signed in as</p>
+            <p className={`mt-1 truncate ${md3BodyMediumClass}`}>{user?.email || 'No email set'}</p>
+            <button type="button" className={`mt-3 ${md3TextButtonClass}`} onClick={handleLogout}>
+              Sign out
+            </button>
+          </div>
         </div>
-
-        <nav className="nav-list" aria-label="Primary navigation">
-          {navigation.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <button type="button" className="ghost-button" onClick={handleLogout}>
-          Sign out
-        </button>
       </aside>
 
-      <div className="content-shell">
-        <header className="topbar">
-          <div>
-            <span className="eyebrow">Authenticated user</span>
-            <h1>Welcome back{user?.first_name ? `, ${user.first_name}` : ''}</h1>
-          </div>
-          <div className="user-badge">
-            <span>{user?.email || 'No email set'}</span>
+      <div className="min-w-0">
+        <header className="border-b border-outline-variant bg-surface/95 backdrop-blur-sm">
+          <div className={`${md3PageClass} gap-4 py-5`}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className={`text-primary ${md3LabelMediumClass}`}>Authenticated user</p>
+                <h1 className={`mt-1 ${md3HeadlineSmallClass}`}>
+                  Welcome back{user?.first_name ? `, ${user.first_name}` : ''}
+                </h1>
+              </div>
+              <div className="rounded-full bg-surface-container-high px-4 py-2 text-on-surface-variant">
+                <span className={md3BodyMediumClass}>{user?.email || 'No email set'}</span>
+              </div>
+            </div>
           </div>
         </header>
 
-        <main className="content-grid">{children}</main>
+        <main className={md3PageClass}>{children}</main>
       </div>
     </div>
   );

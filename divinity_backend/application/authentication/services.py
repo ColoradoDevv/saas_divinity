@@ -16,9 +16,9 @@ class AuthService:
         self.token_provider = token_provider
 
     def login(self, dto: LoginDTO) -> AuthSession:
-        user = self.user_repository.authenticate(username=dto.username, password=dto.password)
+        user = self.user_repository.authenticate(email=dto.email, password=dto.password)
         if user is None:
-            raise InvalidCredentialsError('Invalid username or password.')
+            raise InvalidCredentialsError('Invalid email or password.')
 
         tokens = self.token_provider.create_token_pair(user)
         return AuthSession(user=user, tokens=tokens)
