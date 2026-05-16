@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+
+import { useThemeStore } from '@/app/store/theme';
 
 import { PrivateRoute } from '@/modules/auth/components/PrivateRoute';
 import { ForgotPasswordPage } from '@/modules/auth/pages/ForgotPasswordPage';
@@ -47,6 +50,12 @@ const ProtectedLayout = () => (
 );
 
 export const AppRouter = () => {
+  const isDark = useThemeStore((state) => state.isDark);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [isDark]);
+
   return (
     <BrowserRouter>
       <Routes>
