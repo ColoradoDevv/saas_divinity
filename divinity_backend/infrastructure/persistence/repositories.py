@@ -9,6 +9,7 @@ class DjangoORMClientRepository(ClientRepositoryInterface):
     def _to_entity(self, model: ClientModel) -> Client:
         return Client(
             id=model.id,
+            organization_id=model.organization_id,
             first_name=model.first_name,
             last_name=model.last_name,
             email=model.email,
@@ -17,9 +18,12 @@ class DjangoORMClientRepository(ClientRepositoryInterface):
             created_at=model.created_at,
         )
 
-    def get_by_email(self, email: str) -> Optional[Client]:
+    def get_by_email(self, email: str, organization_id: int) -> Optional[Client]:
         try:
-            model = ClientModel.objects.get(email=email)
+            model = ClientModel.objects.get(
+                email=email,
+                organization_id=organization_id,
+            )
         except ClientModel.DoesNotExist:
             return None
         return self._to_entity(model)
@@ -34,6 +38,7 @@ class DjangoORMClientRepository(ClientRepositoryInterface):
             model.is_active = client.is_active
         else:
             model = ClientModel(
+                organization_id=client.organization_id,
                 first_name=client.first_name,
                 last_name=client.last_name,
                 email=client.email,
@@ -43,5 +48,9 @@ class DjangoORMClientRepository(ClientRepositoryInterface):
         model.save()
         return self._to_entity(model)
 
-    def list_active(self) -> Sequence[Client]:
-        return [self._to_entity(model) for model in ClientModel.objects.filter(is_active=True)]
+    def list_by_organization(self, organization_id: int) -> Sequence[Client]:
+        qs = ClientModel.objects.filter(
+            organization_id=organization_id,
+            is_active=True,
+        )
+        return [self._to_entity(m) for m in qs]

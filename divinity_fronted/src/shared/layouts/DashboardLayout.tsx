@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '@/app/store/auth';
+import { useOrgStore } from '@/app/store/org';
 import { useThemeStore } from '@/app/store/theme';
 import { md3PageClass } from '@/shared/ui/material';
 
@@ -79,12 +80,12 @@ const NavIcons = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const navigation = [
-  { to: '/dashboard', label: 'Panel' },
-  { to: '/clients',   label: 'Clientes' },
-  { to: '/payments',  label: 'Pagos' },
-  { to: '/attendance',label: 'Asistencia' },
-  { to: '/reports',   label: 'Reportes' },
+const ALL_NAV = [
+  { to: '/dashboard',  label: 'Panel',      module: null },        // siempre visible
+  { to: '/clients',    label: 'Clientes',   module: 'clients' },
+  { to: '/payments',   label: 'Pagos',      module: 'payments' },
+  { to: '/attendance', label: 'Asistencia', module: 'attendance' },
+  { to: '/reports',    label: 'Reportes',   module: 'reports' },
 ];
 
 const getInitials = (firstName?: string, lastName?: string, username?: string) => {
@@ -104,27 +105,42 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
+  const organization = useOrgStore((state) => state.organization);
+  const role = useOrgStore((state) => state.role);
+  const clearOrganization = useOrgStore((state) => state.clearOrganization);
+
+  const enabledModules = organization?.enabled_modules ?? [];
+  const navigation = ALL_NAV.filter(
+    (item) => item.module === null || enabledModules.includes(item.module),
+  );
 
   const handleLogout = () => {
+    clearOrganization();
     clearSession();
     navigate('/login', { replace: true });
+  };
+
+  const roleLabel: Record<string, string> = {
+    admin: 'Administrador',
+    manager: 'Gerente',
+    staff: 'Staff',
   };
 
   return (
     <div className="flex h-full flex-col">
 
-      {/* Brand */}
+      {/* Brand — muestra nombre de la organización si está disponible */}
       <div className="flex items-center justify-between px-5 py-5">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary shadow-sm">
             <BrandIcon />
           </div>
-          <div>
-            <p className="text-[0.9375rem] font-semibold leading-tight tracking-tight text-on-surface">
-              Divinity
+          <div className="min-w-0">
+            <p className="truncate text-[0.9375rem] font-semibold leading-tight tracking-tight text-on-surface">
+              {organization?.name ?? 'Divinity'}
             </p>
             <p className="mt-0.5 text-[11px] font-medium leading-none tracking-wide text-on-surface-variant">
-              Business Suite
+              {organization ? `Plan ${organization.plan}` : 'Business Suite'}
             </p>
           </div>
         </div>
@@ -133,7 +149,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1.5 text-on-surface-variant transition hover:bg-on-surface/8 lg:hidden"
+            className="flex-shrink-0 rounded-full p-1.5 text-on-surface-variant transition hover:bg-on-surface/8 lg:hidden"
             aria-label="Cerrar menú"
           >
             <CloseIcon />
@@ -152,7 +168,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       {/* Nav items */}
       <nav className="flex-1 space-y-0.5 px-3" aria-label="Navegación principal">
         {navigation.map(({ to, label }) => {
-          const Icon = NavIcons[to];
+          const Icon = NavIcons[to as keyof typeof NavIcons];
           return (
             <NavLink
               key={to}
@@ -191,6 +207,13 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           </div>
         </div>
 
+        {/* Role badge */}
+        {role && (
+          <div className="mt-2.5 inline-flex items-center rounded-full border border-secondary/20 bg-secondary-container/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-on-secondary-container">
+            {roleLabel[role] ?? role}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleLogout}
@@ -214,6 +237,7 @@ interface DashboardLayoutProps {
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
+  const organization = useOrgStore((state) => state.organization);
   const isDark = useThemeStore((state) => state.isDark);
   const toggleTheme = useThemeStore((state) => state.toggle);
 
@@ -264,8 +288,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
             {/* Page title */}
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">
-                Divinity Suite
+              <p className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">
+                {organization?.name ?? 'Divinity Suite'}
               </p>
               <h1 className="text-base font-semibold leading-tight text-on-surface sm:text-lg">
                 Bienvenido{user?.first_name ? `, ${user.first_name}` : ''}

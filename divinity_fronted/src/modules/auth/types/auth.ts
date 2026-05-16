@@ -19,7 +19,33 @@ export interface LoginPayload {
   password: string;
 }
 
+// ─── Organization / Membership ────────────────────────────────────────────────
+
+export interface Organization {
+  id: number;
+  name: string;
+  slug: string;
+  plan: string;
+  enabled_modules: string[];
+  is_active: boolean;
+}
+
+export interface MembershipResponse {
+  role: string;
+  organization: Organization;
+}
+
+// ─── API responses ────────────────────────────────────────────────────────────
+
+/** Respuesta del POST /api/auth/login */
 export interface AuthSessionResponse {
   user: AuthUser;
   tokens: AuthTokens;
+  membership: MembershipResponse | null;
+}
+
+/** Respuesta del GET /api/auth/me */
+export interface MeResponse {
+  user: AuthUser;
+  membership: MembershipResponse | null;
 }

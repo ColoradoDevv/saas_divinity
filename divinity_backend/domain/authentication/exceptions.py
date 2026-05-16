@@ -4,3 +4,7 @@ class InvalidCredentialsError(Exception):
 
 class UserNotFoundError(Exception):
     pass
+
+
+class NoMembershipFound(Exception):
+    pass

@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+from typing import Optional
+
+from domain.organizations.entities import Membership
 
 
 @dataclass(frozen=True)
@@ -41,9 +44,11 @@ class TokenPair:
 class AuthSession:
     user: AuthenticatedUser
     tokens: TokenPair
+    membership: Optional[Membership]
 
     def to_primitives(self) -> dict:
         return {
             'user': self.user.to_primitives(),
             'tokens': self.tokens.to_primitives(),
+            'membership': self.membership.to_primitives() if self.membership else None,
         }

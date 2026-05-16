@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { useAuthStore } from '@/app/store/auth';
+import { useOrgStore } from '@/app/store/org';
 import {
   md3BodyLargeClass,
   md3BodyMediumClass,
@@ -152,6 +153,8 @@ const modules = [
 
 export const DashboardPage = () => {
   const user = useAuthStore((state) => state.user);
+  const organization = useOrgStore((state) => state.organization);
+  const role = useOrgStore((state) => state.role);
   const greeting = getGreeting();
   const dateStr = getFormattedDate();
 
@@ -186,46 +189,28 @@ export const DashboardPage = () => {
             <span className="h-1.5 w-1.5 rounded-full bg-primary" />
             Sesión activa
           </span>
-          {user?.is_staff && (
+
+          {organization && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/20 bg-secondary-container/50 px-3 py-1.5 text-[0.75rem] font-medium text-on-secondary-container">
-              Cuenta de staff
+              {organization.name}
             </span>
           )}
+
+          {role && (
+            <span className="inline-flex items-center rounded-full border border-tertiary/20 bg-tertiary-container/50 px-3 py-1.5 text-[0.75rem] font-medium text-on-tertiary-container capitalize">
+              {role}
+            </span>
+          )}
+
           <span className="inline-flex items-center rounded-full border border-outline-variant bg-surface-container px-3 py-1.5 text-[0.75rem] font-medium text-on-surface-variant">
             {user?.email ?? ''}
           </span>
         </div>
       </section>
 
-      {/* ── KPI stats ── */}
-      <section>
-        <h2 className={`mb-3 px-1 text-on-surface-variant ${md3BodyMediumClass}`}>
-          Resumen general
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map(({ label, value, sub, icon: Icon, iconBg }) => (
-            <article
-              key={label}
-              className="flex flex-col gap-4 rounded-[20px] border border-outline-variant/70 bg-surface-container-low p-5 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-            >
-              <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${iconBg}`}>
-                <Icon />
-              </div>
-              <div>
-                <strong className="block text-[1.75rem] font-semibold leading-none tracking-tight text-on-surface">
-                  {value}
-                </strong>
-                <p className={`mt-1 text-on-surface-variant ${md3LabelLargeClass}`}>{label}</p>
-                <p className="mt-0.5 text-[11px] text-on-surface-variant/70">{sub}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
       {/* ── Quick access ── */}
       <section>
-        <h2 className={`mb-3 px-1 text-on-surface-variant ${md3BodyMediumClass}`}>
+        <h2 className={`mb-2 px-1 text-on-surface-variant ${md3BodyMediumClass}`}>
           Acceso rápido
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -255,31 +240,34 @@ export const DashboardPage = () => {
           ))}
         </div>
       </section>
-
-      {/* ── Recent activity ── */}
-      <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className={md3TitleMediumClass}>Actividad reciente</h2>
-          <span className="rounded-full border border-outline-variant bg-surface-container px-3 py-1 text-[0.75rem] font-medium text-on-surface-variant">
-            Próximamente
-          </span>
-        </div>
-
-        {/* Empty state */}
-        <div className="mt-6 flex flex-col items-center gap-3 rounded-[16px] border border-dashed border-outline-variant/70 py-12 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-container-high text-on-surface-variant/50">
-            <ActivityIcon />
-          </div>
-          <div>
-            <p className={`font-medium text-on-surface ${md3BodyLargeClass}`}>
-              Sin actividad registrada
-            </p>
-            <p className={`mt-1 text-on-surface-variant ${md3BodyMediumClass}`}>
-              Aquí verás los últimos movimientos del sistema.
-            </p>
-          </div>
+      
+      {/* ── KPI stats ── */}
+      <section>
+        <h2 className={`mb-3 px-1 text-on-surface-variant ${md3BodyMediumClass}`}>
+          Resumen general
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {stats.map(({ label, value, sub, icon: Icon, iconBg }) => (
+            <article
+              key={label}
+              className="flex flex-col gap-4 rounded-[20px] border border-outline-variant/70 bg-surface-container-low p-5 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+            >
+              <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${iconBg}`}>
+                <Icon />
+              </div>
+              <div>
+                <strong className="block text-[1.75rem] font-semibold leading-none tracking-tight text-on-surface">
+                  {value}
+                </strong>
+                <p className={`mt-1 text-on-surface-variant ${md3LabelLargeClass}`}>{label}</p>
+                <p className="mt-0.5 text-[11px] text-on-surface-variant/70">{sub}</p>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
+
+
 
     </div>
   );

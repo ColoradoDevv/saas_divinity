@@ -1,6 +1,6 @@
 import { api, publicApi } from '@/shared/api/api';
 
-import type { AuthSessionResponse, AuthUser, LoginPayload } from '../types/auth';
+import type { AuthSessionResponse, LoginPayload, MeResponse } from '../types/auth';
 
 export const authService = {
   async login(payload: LoginPayload): Promise<AuthSessionResponse> {
@@ -8,8 +8,8 @@ export const authService = {
     return response.data;
   },
 
-  async getCurrentUser(): Promise<AuthUser> {
-    const response = await api.get<AuthUser>('/auth/me');
+  async getCurrentUser(): Promise<MeResponse> {
+    const response = await api.get<MeResponse>('/auth/me');
     return response.data;
   },
 

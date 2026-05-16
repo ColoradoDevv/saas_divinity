@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="favGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#0B1F5C"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Fondo redondeado azul -->
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="url(#favGrad)"/>
+  
+  <!-- D blanca centrada con halo integrado arriba -->
+  <ellipse cx="32" cy="14" rx="14" ry="3" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+  
+  <path fill-rule="evenodd" fill="#FFFFFF" d="
+    M 16 22 L 16 54 L 36 54 Q 52 54 52 38 Q 52 22 36 22 Z
+    M 24 30 L 24 46 L 35 46 Q 44 46 44 38 Q 44 30 35 30 Z
+  "/>
+</svg>
