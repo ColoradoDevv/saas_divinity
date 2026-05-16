@@ -1,6 +1,6 @@
 # SaaS Divinity — Documentación Completa del Proyecto
 
-> **Última actualización**: 2026-05-15 — módulo auth completado  
+> **Última actualización**: 2026-05-15 — dashboard rediseñado, módulo auth completado  
 > Actualizar este archivo cada vez que se agreguen features, cambien modelos, rutas o lógica relevante.
 
 ---
@@ -494,10 +494,20 @@ deleteClient(id)          // api.delete('/clients/{id}/')
 
 ### Layout (`src/shared/layouts/DashboardLayout.tsx`)
 
-Navegación lateral con:
-- Dashboard, Clients, Payments, Attendance, Reports
-- Info del usuario (nombre, email)
-- Botón "Sign out" → clearSession() + navigate('/login')
+Sidebar fija 280px en desktop, slide-over en mobile con overlay y botón hamburguesa.
+- Navegación con iconos SVG: Panel, Clientes, Pagos, Asistencia, Reportes
+- Brand header con logo + nombre "Divinity Business Suite"
+- User card inferior: avatar con iniciales, nombre/email, botón cerrar sesión
+- Header sticky con: toggle mobile, saludo con nombre, chip de email (desktop)
+- `getInitials(firstName, lastName, username)` helper local
+
+### Dashboard (`src/modules/dashboard/pages/DashboardPage.tsx`)
+
+Dashboard corporativo con:
+- Hero section: saludo contextual (Buenos días/tardes/noches), fecha, avatar, status badges
+- 4 KPI stat cards: Clientes activos, Pagos del mes, Asistencia, Pendientes (datos placeholder)
+- 4 acceso rápido cards: Clientes (activo), Pagos/Asistencia/Reportes (badge "Próximamente")
+- Sección actividad reciente: empty state con ícono y texto descriptivo
 
 Header con mensaje de bienvenida y email del usuario.
 
