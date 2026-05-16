@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { useAuthStore } from '@/app/store/auth';
+import { useOrgStore } from '@/app/store/org';
 import {
   md3BodyLargeClass,
   md3HeadlineSmallClass,
@@ -19,6 +20,8 @@ export const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const location = useLocation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isBootstrapping = useAuthStore((state) => state.isBootstrapping);
+  const organization = useOrgStore((state) => state.organization);
+  const role = useOrgStore((state) => state.role);
 
   useAuthBootstrap();
 
@@ -39,6 +42,21 @@ export const PrivateRoute = ({ children }: PrivateRouteProps) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  // Redirigir a onboarding si la organización no completó la configuración inicial
+  // (solo aplica a admins, no a superusuarios ni a la propia ruta de onboarding)
+  const isOnboardingRoute = location.pathname === '/onboarding';
+  const isSuperRoute = location.pathname === '/super';
+  const needsOnboarding =
+    organization &&
+    !organization.onboarding_completed &&
+    role === 'admin' &&
+    !isOnboardingRoute &&
+    !isSuperRoute;
+
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;

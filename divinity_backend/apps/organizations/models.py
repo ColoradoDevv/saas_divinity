@@ -12,12 +12,17 @@ class OrganizationModel(models.Model):
     name = models.CharField(max_length=120)
     slug = models.SlugField(unique=True, max_length=80)
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='free')
-    # Lista de módulos activos: ['clients', 'payments', 'attendance', 'reports']
     enabled_modules = models.JSONField(
         default=list,
-        help_text='Claves de módulos habilitados para esta organización.',
+        help_text='Claves de módulos habilitados: clients, payments, attendance, reports, workers',
     )
     is_active = models.BooleanField(default=True)
+
+    # Onboarding y personalización de marca
+    onboarding_completed = models.BooleanField(default=False)
+    primary_color = models.CharField(max_length=7, blank=True, default='')
+    logo_url = models.TextField(blank=True, default='')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

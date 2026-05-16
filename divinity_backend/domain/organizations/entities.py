@@ -14,7 +14,8 @@ MODULE_CLIENTS = 'clients'
 MODULE_PAYMENTS = 'payments'
 MODULE_ATTENDANCE = 'attendance'
 MODULE_REPORTS = 'reports'
-ALL_MODULES = [MODULE_CLIENTS, MODULE_PAYMENTS, MODULE_ATTENDANCE, MODULE_REPORTS]
+MODULE_WORKERS = 'workers'
+ALL_MODULES = [MODULE_CLIENTS, MODULE_PAYMENTS, MODULE_ATTENDANCE, MODULE_REPORTS, MODULE_WORKERS]
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,9 @@ class Organization:
     plan: str
     enabled_modules: tuple
     is_active: bool
+    onboarding_completed: bool
+    primary_color: str
+    logo_url: str
 
     def to_primitives(self) -> dict:
         return {
@@ -34,6 +38,9 @@ class Organization:
             'plan': self.plan,
             'enabled_modules': list(self.enabled_modules),
             'is_active': self.is_active,
+            'onboarding_completed': self.onboarding_completed,
+            'primary_color': self.primary_color,
+            'logo_url': self.logo_url,
         }
 
 

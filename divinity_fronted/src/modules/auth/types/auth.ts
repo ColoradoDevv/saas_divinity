@@ -28,6 +28,9 @@ export interface Organization {
   plan: string;
   enabled_modules: string[];
   is_active: boolean;
+  onboarding_completed: boolean;
+  primary_color: string;
+  logo_url: string;
 }
 
 export interface MembershipResponse {

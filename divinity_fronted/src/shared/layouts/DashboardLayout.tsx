@@ -68,6 +68,13 @@ const NavIcons = {
       <line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /><path d="m9 16 2 2 4-4" />
     </svg>
   ),
+  '/workers': () => (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      <path d="m15 17 2 2 4-4" />
+    </svg>
+  ),
   '/reports': () => (
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <line x1="18" x2="18" y1="20" y2="10" /><line x1="12" x2="12" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="14" />
@@ -78,11 +85,12 @@ const NavIcons = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ALL_NAV = [
-  { to: '/dashboard',  label: 'Panel',      module: null },        // siempre visible
-  { to: '/clients',    label: 'Clientes',   module: 'clients' },
-  { to: '/payments',   label: 'Pagos',      module: 'payments' },
-  { to: '/attendance', label: 'Asistencia', module: 'attendance' },
-  { to: '/reports',    label: 'Reportes',   module: 'reports' },
+  { to: '/dashboard',  label: 'Panel',          module: null },
+  { to: '/clients',    label: 'Clientes',       module: 'clients' },
+  { to: '/workers',    label: 'Trabajadores',   module: 'workers' },
+  { to: '/payments',   label: 'Pagos',          module: 'payments' },
+  { to: '/attendance', label: 'Asistencia',     module: 'attendance' },
+  { to: '/reports',    label: 'Reportes',       module: 'reports' },
 ];
 
 const getInitials = (firstName?: string, lastName?: string, username?: string) => {
@@ -133,11 +141,20 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       {/* Brand — muestra nombre de la organización si está disponible */}
       <div className="flex items-center justify-between px-5 py-5">
         <div className="flex items-center gap-3">
-          <img
-            src={isDark ? isotipoBlanco : isotipoColor}
-            alt="Divinity"
-            className="h-9 w-9 flex-shrink-0"
-          />
+          {organization?.logo_url ? (
+            <img
+              src={organization.logo_url}
+              alt={organization.name}
+              className="h-9 max-w-[2.25rem] flex-shrink-0 object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          ) : (
+            <img
+              src={isDark ? isotipoBlanco : isotipoColor}
+              alt="Divinity"
+              className="h-9 w-9 flex-shrink-0"
+            />
+          )}
           <div className="min-w-0">
             <p className="truncate text-[0.9375rem] font-semibold leading-tight tracking-tight text-on-surface">
               {organization?.name ?? 'Divinity'}

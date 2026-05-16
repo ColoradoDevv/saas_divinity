@@ -31,11 +31,11 @@ class OrganizationSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
     slug = serializers.CharField(read_only=True)
     plan = serializers.CharField(read_only=True)
-    enabled_modules = serializers.ListField(
-        child=serializers.CharField(),
-        read_only=True,
-    )
+    enabled_modules = serializers.ListField(child=serializers.CharField(), read_only=True)
     is_active = serializers.BooleanField(read_only=True)
+    onboarding_completed = serializers.BooleanField(read_only=True)
+    primary_color = serializers.CharField(read_only=True, allow_blank=True)
+    logo_url = serializers.CharField(read_only=True, allow_blank=True)
 
 
 class MembershipSerializer(serializers.Serializer):

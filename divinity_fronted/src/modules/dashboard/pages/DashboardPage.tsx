@@ -229,7 +229,7 @@ export const DashboardPage = () => {
                     </span>
                   ) : null}
                 </div>
-                <p className={`mt-1.5 text-on-surface-variant ${md3BodyMediumClass}`}>
+                  <p className={`mt-1.5 text-on-surface-variant ${md3BodyMediumClass}`}>
                   {description}
                 </p>
               </div>
