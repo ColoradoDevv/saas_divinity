@@ -5,10 +5,12 @@ Responsabilidades:
   1. Extraer organization_id del JWT (sin depender de DRF — parsea el header directamente).
   2. Verificar que la organización existe, is_active=True y payment_status != 'overdue'.
   3. Inyectar request.organization para que las vistas lo consuman sin repetir esta lógica.
+  4. Escribir user_id y org_id en thread-locals para el sistema de audit logs.
+     Los thread-locals se limpian antes y después de cada request.
 
 Caminos exentos (no tienen contexto de tenant):
   - /admin/         — Django admin
-  - /api/auth/      — login, refresh, forgot-password
+  - /api/auth/      — login, refresh, forgot-password, switch-org
   - /media/         — archivos estáticos
 
 Módulo-gating (B2):
@@ -19,19 +21,20 @@ Módulo-gating (B2):
 from django.http import JsonResponse
 from rest_framework.permissions import BasePermission
 
+from infrastructure.audit.thread_locals import clear_audit_context, set_audit_context
+
 _EXEMPT_PREFIXES = ('/admin/', '/api/auth/', '/media/')
 
 
-def _extract_org_id_from_header(request) -> int | None:
+def _decode_bearer_token(request):
+    """Parsea el header Authorization y devuelve el AccessToken decodificado o None."""
     auth_header = request.META.get('HTTP_AUTHORIZATION', '')
     if not auth_header.startswith('Bearer '):
         return None
     token_str = auth_header[7:]
     try:
         from rest_framework_simplejwt.tokens import AccessToken
-        token = AccessToken(token_str)
-        org_id = token.get('organization_id')
-        return int(org_id) if org_id is not None else None
+        return AccessToken(token_str)
     except Exception:
         return None
 
@@ -41,12 +44,25 @@ class TenantMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        clear_audit_context()
+        try:
+            return self._handle(request)
+        finally:
+            clear_audit_context()
+
+    def _handle(self, request):
         if any(request.path.startswith(p) for p in _EXEMPT_PREFIXES):
             return self.get_response(request)
 
-        org_id = _extract_org_id_from_header(request)
+        token = _decode_bearer_token(request)
+        if token is None:
+            return self.get_response(request)
+
+        org_id = token.get('organization_id')
         if org_id is None:
             return self.get_response(request)
+
+        org_id = int(org_id)
 
         from apps.organizations.models import OrganizationModel
         try:
@@ -70,6 +86,13 @@ class TenantMiddleware:
             )
 
         request.organization = org
+
+        user_id = token.get('user_id')
+        set_audit_context(
+            user_id=int(user_id) if user_id is not None else None,
+            org_id=org.id,
+        )
+
         return self.get_response(request)
 
 

@@ -9,15 +9,24 @@ from application.clients.dtos import CreateClientDTO
 from application.clients.services import CreateClientService
 from infrastructure.middleware.tenant import module_permission
 from infrastructure.notifications.email_service import EmailNotificationService
+from infrastructure.permissions.roles import IsAdminOnly, IsAdminOrManager
 from infrastructure.persistence.repositories import DjangoORMClientRepository
 
 from .serializers import ClientReadSerializer, CreateClientSerializer, UpdateClientSerializer
 
 ClientsModuleEnabled = module_permission('clients')
 
+_BASE_PERMS = [permissions.IsAuthenticated, ClientsModuleEnabled, IsAdminOrManager]
+_ADMIN_PERMS = [permissions.IsAuthenticated, ClientsModuleEnabled, IsAdminOnly]
+
 
 class ClientViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated, ClientsModuleEnabled]
+    permission_classes = _BASE_PERMS
+
+    def get_permissions(self):
+        if self.action == 'destroy':
+            return [p() for p in _ADMIN_PERMS]
+        return [p() for p in _BASE_PERMS]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

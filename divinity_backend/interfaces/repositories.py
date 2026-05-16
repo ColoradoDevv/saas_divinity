@@ -12,6 +12,10 @@ class OrganizationRepositoryInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_membership_for_org(self, user_id: int, organization_id: int) -> Optional[Membership]:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_by_slug(self, slug: str) -> Optional[Organization]:
         raise NotImplementedError
 
