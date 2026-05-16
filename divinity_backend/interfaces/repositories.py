@@ -32,9 +32,17 @@ class ClientRepositoryInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_by_id(self, client_id: int, organization_id: int) -> Optional[Client]:
+        raise NotImplementedError
+
+    @abstractmethod
     def save(self, client: Client) -> Client:
         raise NotImplementedError
 
     @abstractmethod
     def list_by_organization(self, organization_id: int) -> Sequence[Client]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def deactivate(self, client_id: int, organization_id: int) -> bool:
         raise NotImplementedError

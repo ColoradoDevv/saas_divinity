@@ -28,6 +28,13 @@ class DjangoORMClientRepository(ClientRepositoryInterface):
             return None
         return self._to_entity(model)
 
+    def get_by_id(self, client_id: int, organization_id: int) -> Optional[Client]:
+        try:
+            model = ClientModel.objects.get(pk=client_id, organization_id=organization_id)
+        except ClientModel.DoesNotExist:
+            return None
+        return self._to_entity(model)
+
     def save(self, client: Client) -> Client:
         if client.id is not None:
             model = ClientModel.objects.get(pk=client.id)
@@ -54,3 +61,10 @@ class DjangoORMClientRepository(ClientRepositoryInterface):
             is_active=True,
         )
         return [self._to_entity(m) for m in qs]
+
+    def deactivate(self, client_id: int, organization_id: int) -> bool:
+        updated = ClientModel.objects.filter(
+            pk=client_id,
+            organization_id=organization_id,
+        ).update(is_active=False)
+        return updated > 0

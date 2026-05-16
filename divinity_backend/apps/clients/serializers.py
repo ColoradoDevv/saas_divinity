@@ -8,6 +8,13 @@ class CreateClientSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
 
 
+class UpdateClientSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=60, required=False)
+    last_name = serializers.CharField(max_length=60, required=False)
+    email = serializers.EmailField(required=False)
+    phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
+
+
 class ClientReadSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     first_name = serializers.CharField(read_only=True)

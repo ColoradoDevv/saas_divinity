@@ -20,6 +20,7 @@ class DjangoORMUserRepository(UserRepositoryInterface):
             is_active=user.is_active,
             is_staff=user.is_staff,
             is_superuser=user.is_superuser,
+            organization_id=None,
         )
 
     def authenticate(self, email: str, password: str) -> Optional[AuthenticatedUser]:

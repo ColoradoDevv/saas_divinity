@@ -7,6 +7,7 @@ export interface AuthUser {
   is_active: boolean;
   is_staff: boolean;
   is_superuser: boolean;
+  organization_id: number | null;
 }
 
 export interface AuthTokens {

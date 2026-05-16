@@ -20,6 +20,7 @@ class AuthenticatedUserSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(read_only=True)
     is_staff = serializers.BooleanField(read_only=True)
     is_superuser = serializers.BooleanField(read_only=True)
+    organization_id = serializers.IntegerField(read_only=True, allow_null=True, required=False)
 
 
 class TokenPairSerializer(serializers.Serializer):
