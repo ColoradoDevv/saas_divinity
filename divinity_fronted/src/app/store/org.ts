@@ -6,7 +6,11 @@ import type { MembershipResponse, Organization } from '@/modules/auth/types/auth
 interface OrgState {
   organization: Organization | null;
   role: string | null;
-  setOrganization: (org: Organization, role: string) => void;
+  /** null = sin restricción (admin/manager). Array = módulos permitidos para staff. */
+  allowedModules: string[] | null;
+  /** Cargo del trabajador (solo para staff). */
+  position: string | null;
+  setOrganization: (org: Organization, role: string, allowedModules?: string[] | null, position?: string | null) => void;
   clearOrganization: () => void;
 }
 
@@ -15,8 +19,11 @@ export const useOrgStore = create<OrgState>()(
     (set) => ({
       organization: null,
       role: null,
-      setOrganization: (organization, role) => set({ organization, role }),
-      clearOrganization: () => set({ organization: null, role: null }),
+      allowedModules: null,
+      position: null,
+      setOrganization: (organization, role, allowedModules = null, position = null) =>
+        set({ organization, role, allowedModules, position }),
+      clearOrganization: () => set({ organization: null, role: null, allowedModules: null, position: null }),
     }),
     { name: 'divinity-org' },
   ),
@@ -35,7 +42,7 @@ export const applyOrgColor = (primaryColor: string | undefined) => {
 export const applyMembership = (membership: MembershipResponse | null) => {
   const { setOrganization, clearOrganization } = useOrgStore.getState();
   if (membership) {
-    setOrganization(membership.organization, membership.role);
+    setOrganization(membership.organization, membership.role, membership.allowed_modules ?? null, membership.position ?? null);
     applyOrgColor(membership.organization.primary_color);
   } else {
     clearOrganization();

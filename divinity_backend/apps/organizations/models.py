@@ -4,19 +4,30 @@ from django.db import models
 
 class OrganizationModel(models.Model):
     PLAN_CHOICES = [
-        ('free', 'Free'),
         ('pro', 'Pro'),
         ('enterprise', 'Enterprise'),
+    ]
+    PAYMENT_STATUS_CHOICES = [
+        ('paid', 'Pagado'),
+        ('unpaid', 'Pendiente'),
+        ('overdue', 'Vencido'),
     ]
 
     name = models.CharField(max_length=120)
     slug = models.SlugField(unique=True, max_length=80)
-    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='free')
+    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='pro')
     enabled_modules = models.JSONField(
         default=list,
         help_text='Claves de módulos habilitados: clients, payments, attendance, reports, workers',
     )
     is_active = models.BooleanField(default=True)
+
+    # Facturación
+    payment_status = models.CharField(
+        max_length=20, choices=PAYMENT_STATUS_CHOICES, default='unpaid'
+    )
+    last_payment_date = models.DateField(null=True, blank=True)
+    next_payment_date = models.DateField(null=True, blank=True)
 
     # Onboarding y personalización de marca
     onboarding_completed = models.BooleanField(default=False)

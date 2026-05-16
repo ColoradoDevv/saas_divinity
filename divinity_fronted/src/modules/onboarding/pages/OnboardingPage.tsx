@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 
@@ -9,7 +9,6 @@ import {
   md3BodyMediumClass,
   md3FilledButtonClass,
   md3HeadlineMediumClass,
-  md3HeadlineSmallClass,
   md3InputLabelClass,
   md3OutlinedButtonClass,
   md3OverlineClass,
@@ -52,7 +51,16 @@ const completeOnboarding = async (payload: OnboardingPayload) => {
   return res.data as Organization;
 };
 
-// ─── Step components ──────────────────────────────────────────────────────────
+const uploadLogo = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('logo', file);
+  const res = await api.post('/organizations/me/logo/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data.logo_url as string;
+};
+
+// ─── Step Indicator ───────────────────────────────────────────────────────────
 
 const StepIndicator = ({ current }: { current: number }) => (
   <div className="flex items-center justify-center gap-2">
@@ -65,6 +73,96 @@ const StepIndicator = ({ current }: { current: number }) => (
     ))}
   </div>
 );
+
+// ─── Logo Upload Step ─────────────────────────────────────────────────────────
+
+const LogoStep = ({
+  logoUrl,
+  onLogoUrl,
+}: {
+  logoUrl: string;
+  onLogoUrl: (url: string) => void;
+}) => {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [preview, setPreview] = useState<string>(logoUrl);
+
+  const handleFile = async (file: File) => {
+    const maxMB = 2;
+    if (file.size > maxMB * 1024 * 1024) {
+      setUploadError(`El archivo no debe superar ${maxMB} MB.`);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
+    setUploadError('');
+    setUploading(true);
+    try {
+      const url = await uploadLogo(file);
+      onLogoUrl(url);
+    } catch {
+      setUploadError('Error al subir el logo. Intenta de nuevo.');
+      setPreview(logoUrl);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp,image/gif"
+        className="hidden"
+        onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
+      />
+
+      <div
+        onClick={() => fileRef.current?.click()}
+        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[16px] border-2 border-dashed border-outline-variant bg-surface-container-low p-8 transition hover:border-primary hover:bg-primary/4">
+        {preview ? (
+          <img src={preview} alt="Logo" className="h-16 max-w-[200px] object-contain" />
+        ) : (
+          <>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-on-surface-variant">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <p className={`text-center text-on-surface-variant ${md3BodyMediumClass}`}>
+              Haz clic para seleccionar tu logo
+            </p>
+          </>
+        )}
+        {uploading && (
+          <div className="flex items-center gap-2 text-primary">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            <span className={md3BodyMediumClass}>Subiendo...</span>
+          </div>
+        )}
+      </div>
+
+      {preview && !uploading && (
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className={`w-full ${md3OutlinedButtonClass}`}>
+          Cambiar logo
+        </button>
+      )}
+
+      {uploadError && (
+        <p className={`text-error ${md3BodyMediumClass}`}>{uploadError}</p>
+      )}
+
+      <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+        Formatos aceptados: PNG, JPG, SVG, WEBP · Máximo 2 MB. Si no tienes uno ahora puedes saltarte este paso.
+      </p>
+    </div>
+  );
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -84,7 +182,6 @@ export const OnboardingPage = () => {
   const mutation = useMutation({
     mutationFn: completeOnboarding,
     onSuccess: (updatedOrg) => {
-      // Actualizar el store con los nuevos datos de la organización
       applyMembership({
         role: role ?? 'admin',
         organization: updatedOrg,
@@ -164,7 +261,6 @@ export const OnboardingPage = () => {
             </div>
           </div>
 
-          {/* Preview live */}
           <div className="rounded-[16px] border border-outline-variant p-4">
             <p className={`${md3BodyMediumClass} text-on-surface-variant`}>Vista previa</p>
             <div className="mt-3 flex items-center gap-3">
@@ -182,37 +278,12 @@ export const OnboardingPage = () => {
     },
     {
       title: 'Logo de tu empresa',
-      subtitle: 'Ingresa la URL de tu logo (JPG, PNG o SVG). Puedes cambiarlo después.',
+      subtitle: 'Sube el archivo de tu logo (PNG, JPG, SVG o WEBP). Puedes cambiarlo después.',
       content: (
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="logo-url" className={md3InputLabelClass}>URL del logo</label>
-            <input
-              id="logo-url"
-              type="url"
-              className={md3TextFieldClass}
-              value={form.logo_url}
-              onChange={(e) => setForm((p) => ({ ...p, logo_url: e.target.value }))}
-              placeholder="https://mi-empresa.com/logo.svg"
-            />
-          </div>
-
-          {form.logo_url && (
-            <div className="flex items-center gap-4 rounded-[16px] border border-outline-variant p-4">
-              <img
-                src={form.logo_url}
-                alt="Logo"
-                className="h-12 max-w-[160px] object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-              <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>Vista previa del logo</p>
-            </div>
-          )}
-
-          <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
-            Si no tienes uno ahora, puedes saltarte este paso. Divinity usará su isotipo por defecto.
-          </p>
-        </div>
+        <LogoStep
+          logoUrl={form.logo_url}
+          onLogoUrl={(url) => setForm((p) => ({ ...p, logo_url: url }))}
+        />
       ),
     },
     {
@@ -257,7 +328,6 @@ export const OnboardingPage = () => {
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
-      {/* Header */}
       <div className={`${md3SurfaceClass} p-6 sm:p-8`}>
         <StepIndicator current={step} />
         <p className={`mt-4 ${md3OverlineClass}`}>Paso {step + 1} de {TOTAL_STEPS}</p>
@@ -265,12 +335,16 @@ export const OnboardingPage = () => {
         <p className={`mt-2 text-on-surface-variant ${md3BodyLargeClass}`}>{currentStep.subtitle}</p>
       </div>
 
-      {/* Step content */}
       <div className={`${md3SurfaceClass} p-6 sm:p-8`}>
         {currentStep.content}
       </div>
 
-      {/* Navigation */}
+      {mutation.isError && (
+        <p className={`text-center text-error ${md3BodyMediumClass}`}>
+          Error al guardar la configuración. Intenta de nuevo.
+        </p>
+      )}
+
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"

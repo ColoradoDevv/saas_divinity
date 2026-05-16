@@ -36,6 +36,10 @@ export interface Organization {
 export interface MembershipResponse {
   role: string;
   organization: Organization;
+  /** Para usuarios staff: módulos que pueden ver. null = sin restricción (admin/manager). */
+  allowed_modules: string[] | null;
+  /** Cargo del trabajador (solo para staff). */
+  position: string | null;
 }
 
 // ─── API responses ────────────────────────────────────────────────────────────

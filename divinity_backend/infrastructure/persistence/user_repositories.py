@@ -23,10 +23,16 @@ class DjangoORMUserRepository(UserRepositoryInterface):
         )
 
     def authenticate(self, email: str, password: str) -> Optional[AuthenticatedUser]:
+        # Buscar por email primero; si no existe, intentar por username
+        # (necesario para cuentas con credenciales auto-generadas)
+        user = None
         try:
             user = UserModel.objects.get(email__iexact=email)
         except UserModel.DoesNotExist:
-            return None
+            try:
+                user = UserModel.objects.get(username__iexact=email)
+            except UserModel.DoesNotExist:
+                return None
 
         if not user.is_active or not user.check_password(password):
             return None

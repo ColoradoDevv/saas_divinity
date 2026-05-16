@@ -2,7 +2,8 @@ from rest_framework import serializers
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(trim_whitespace=True)
+    # CharField en lugar de EmailField para aceptar también usernames auto-generados
+    email = serializers.CharField(trim_whitespace=True, max_length=254)
     password = serializers.CharField(
         write_only=True,
         trim_whitespace=False,
@@ -41,6 +42,12 @@ class OrganizationSerializer(serializers.Serializer):
 class MembershipSerializer(serializers.Serializer):
     role = serializers.CharField(read_only=True)
     organization = OrganizationSerializer(read_only=True)
+    # Módulos accesibles para este usuario (puede ser un subconjunto para staff)
+    allowed_modules = serializers.ListField(
+        child=serializers.CharField(), read_only=True, required=False, allow_null=True
+    )
+    # Cargo del trabajador (solo para staff)
+    position = serializers.CharField(read_only=True, required=False, allow_null=True)
 
 
 class AuthSessionSerializer(serializers.Serializer):

@@ -5,7 +5,9 @@ import type {
   CreateWorkerPayload,
   Task,
   UpdateTaskPayload,
+  UpdateWorkerPayload,
   Worker,
+  WorkerCreationResponse,
 } from '../types';
 
 export const workerService = {
@@ -14,12 +16,12 @@ export const workerService = {
     return res.data;
   },
 
-  async createWorker(payload: CreateWorkerPayload): Promise<Worker> {
+  async createWorker(payload: CreateWorkerPayload): Promise<WorkerCreationResponse> {
     const res = await api.post('/workers/', payload);
     return res.data;
   },
 
-  async updateWorker(id: number, payload: Partial<CreateWorkerPayload>): Promise<Worker> {
+  async updateWorker(id: number, payload: UpdateWorkerPayload): Promise<Worker> {
     const res = await api.patch(`/workers/${id}/`, payload);
     return res.data;
   },

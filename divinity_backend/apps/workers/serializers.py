@@ -13,31 +13,37 @@ class WorkerReadSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     task_count = serializers.IntegerField(read_only=True, default=0)
+    allowed_modules = serializers.ListField(child=serializers.CharField(), read_only=True)
+    # Solo presente en respuesta de creación cuando se auto-generan credenciales
+    generated_credentials = serializers.DictField(required=False, allow_null=True, read_only=True)
 
 
 class CreateWorkerSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=60)
     last_name = serializers.CharField(max_length=60)
     email = serializers.EmailField(required=False, allow_blank=True, default='')
-    phone = serializers.CharField(max_length=30, required=False, allow_blank=True, default='')
-    position = serializers.CharField(max_length=80, required=False, allow_blank=True, default='')
+    phone = serializers.CharField(max_length=30)
+    position = serializers.CharField(max_length=80)
     create_account = serializers.BooleanField(default=False)
+    # gmail = usa el email como usuario; auto = el sistema genera usuario y contraseña
+    credential_type = serializers.ChoiceField(choices=['gmail', 'auto'], default='gmail', required=False)
+    # manual = el admin escribe la contraseña; auto = el sistema la genera
+    password_type = serializers.ChoiceField(choices=['manual', 'auto'], default='manual', required=False)
     password = serializers.CharField(
-        write_only=True,
-        required=False,
-        allow_blank=True,
-        default='',
+        write_only=True, required=False, allow_blank=True, default='',
         style={'input_type': 'password'},
     )
+    allowed_modules = serializers.ListField(child=serializers.CharField(), required=False, default=list)
 
 
 class UpdateWorkerSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=60, required=False)
     last_name = serializers.CharField(max_length=60, required=False)
     email = serializers.EmailField(required=False, allow_blank=True)
-    phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
-    position = serializers.CharField(max_length=80, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=30, required=False)
+    position = serializers.CharField(max_length=80, required=False)
     is_active = serializers.BooleanField(required=False)
+    allowed_modules = serializers.ListField(child=serializers.CharField(), required=False)
 
 
 class TaskReadSerializer(serializers.Serializer):
@@ -61,10 +67,7 @@ class CreateTaskSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     description = serializers.CharField(required=False, allow_blank=True, default='')
     due_date = serializers.DateField(required=False, allow_null=True)
-    priority = serializers.ChoiceField(
-        choices=['low', 'medium', 'high'],
-        default='medium',
-    )
+    priority = serializers.ChoiceField(choices=['low', 'medium', 'high'], default='medium')
 
 
 class UpdateTaskSerializer(serializers.Serializer):
@@ -74,6 +77,5 @@ class UpdateTaskSerializer(serializers.Serializer):
     due_date = serializers.DateField(required=False, allow_null=True)
     priority = serializers.ChoiceField(choices=['low', 'medium', 'high'], required=False)
     status = serializers.ChoiceField(
-        choices=['pending', 'in_progress', 'done', 'cancelled'],
-        required=False,
+        choices=['pending', 'in_progress', 'done', 'cancelled'], required=False,
     )

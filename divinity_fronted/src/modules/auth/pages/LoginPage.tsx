@@ -94,8 +94,8 @@ export const LoginPage = () => {
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     try {
-      await loginMutation.mutateAsync({ payload: formData, rememberMe });
-      navigate(redirectTo, { replace: true });
+      const loggedUser = await loginMutation.mutateAsync({ payload: formData, rememberMe });
+      navigate(loggedUser?.is_superuser ? '/admin' : redirectTo, { replace: true });
     } catch {
       // El error se muestra via loginMutation.isError
     }
@@ -125,14 +125,14 @@ export const LoginPage = () => {
         <form className="mt-8 space-y-4" onSubmit={handleSubmit} noValidate>
           <div>
             <label htmlFor="email" className={md3InputLabelClass}>
-              Correo electrónico
+              Correo electrónico o usuario
             </label>
             <input
               id="email"
               name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="nombre@empresa.com"
+              type="text"
+              autoComplete="username"
+              placeholder="nombre@empresa.com o usuario"
               value={formData.email}
               onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
               className={md3TextFieldClass}

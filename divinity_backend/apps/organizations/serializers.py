@@ -9,6 +9,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'plan', 'enabled_modules',
             'is_active', 'onboarding_completed', 'primary_color', 'logo_url',
+            'payment_status', 'last_payment_date', 'next_payment_date',
             'created_at',
         ]
         read_only_fields = fields
@@ -34,7 +35,7 @@ class OnboardingSerializer(serializers.Serializer):
 class CreateOrganizationSerializer(serializers.Serializer):
     # Datos de la empresa
     name = serializers.CharField(max_length=120)
-    plan = serializers.ChoiceField(choices=['free', 'pro', 'enterprise'], default='free')
+    plan = serializers.ChoiceField(choices=['pro', 'enterprise'], default='pro')
     enabled_modules = serializers.ListField(
         child=serializers.ChoiceField(choices=['clients', 'payments', 'attendance', 'reports', 'workers']),
         default=['clients'],
@@ -44,6 +45,12 @@ class CreateOrganizationSerializer(serializers.Serializer):
     admin_password = serializers.CharField(write_only=True, min_length=8)
     admin_first_name = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
     admin_last_name = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
+
+
+class PaymentUpdateSerializer(serializers.Serializer):
+    payment_status = serializers.ChoiceField(choices=['paid', 'unpaid', 'overdue'])
+    last_payment_date = serializers.DateField(required=False, allow_null=True)
+    next_payment_date = serializers.DateField(required=False, allow_null=True)
 
 
 class MembershipSerializer(serializers.Serializer):

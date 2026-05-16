@@ -1,5 +1,7 @@
+import secrets
+import string
+
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import User
 from django.db import transaction
 from rest_framework import permissions, status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -19,6 +21,24 @@ from .serializers import (
 
 UserModel = get_user_model()
 
+_PASSWORD_ALPHABET = string.ascii_letters + string.digits + '!@#$%&*'
+
+
+def _generate_password(length: int = 12) -> str:
+    return ''.join(secrets.choice(_PASSWORD_ALPHABET) for _ in range(length))
+
+
+def _generate_username(first_name: str, last_name: str) -> str:
+    base = f"{first_name.lower()}.{last_name.lower()}"
+    # Mantener solo letras, números y puntos
+    base = ''.join(c for c in base if c.isalnum() or c == '.')
+    username = base
+    suffix = 1
+    while UserModel.objects.filter(username=username).exists():
+        username = f'{base}{suffix}'
+        suffix += 1
+    return username
+
 
 def _get_org_id(request) -> int:
     if request.auth and 'organization_id' in request.auth:
@@ -26,7 +46,7 @@ def _get_org_id(request) -> int:
     raise PermissionDenied('Sin contexto de organización.')
 
 
-def _worker_to_dict(worker: WorkerModel) -> dict:
+def _worker_to_dict(worker: WorkerModel, generated_credentials=None) -> dict:
     return {
         'id': worker.id,
         'first_name': worker.first_name,
@@ -39,6 +59,8 @@ def _worker_to_dict(worker: WorkerModel) -> dict:
         'is_active': worker.is_active,
         'created_at': worker.created_at,
         'task_count': worker.tasks.filter(status__in=['pending', 'in_progress']).count(),
+        'allowed_modules': worker.allowed_modules,
+        'generated_credentials': generated_credentials,
     }
 
 
@@ -76,21 +98,59 @@ class WorkerListCreateView(APIView):
         d = serializer.validated_data
 
         user = None
-        if d.get('create_account') and d.get('email') and d.get('password'):
-            if UserModel.objects.filter(email=d['email']).exists():
-                raise ValidationError('Ya existe una cuenta con ese correo.')
+        generated_credentials = None
+
+        if d.get('create_account'):
+            credential_type = d.get('credential_type', 'gmail')
+            password_type = d.get('password_type', 'manual')
+
+            if credential_type == 'auto':
+                username = _generate_username(d['first_name'], d['last_name'])
+                password = _generate_password()
+                email = d.get('email', '') or f'{username}@divinity.local'
+            else:
+                # gmail: el email del trabajador es el nombre de usuario
+                if not d.get('email'):
+                    raise ValidationError({'email': 'El correo es requerido para el tipo de cuenta Gmail.'})
+                email = d['email']
+                username = email
+                if password_type == 'auto':
+                    password = _generate_password()
+                else:
+                    if not d.get('password'):
+                        raise ValidationError({'password': 'La contraseña es requerida.'})
+                    password = d['password']
+
+            if UserModel.objects.filter(email=email).exists():
+                raise ValidationError({'email': 'Ya existe una cuenta con ese correo.'})
+            if UserModel.objects.filter(username=username).exists():
+                raise ValidationError({'email': 'Ya existe una cuenta con ese nombre de usuario.'})
+
             user = UserModel.objects.create_user(
-                username=d['email'],
-                email=d['email'],
-                password=d['password'],
+                username=username,
+                email=email,
+                password=password,
                 first_name=d['first_name'],
                 last_name=d['last_name'],
+                is_staff=False,      # Workers son usuarios normales sin acceso al panel Django
+                is_superuser=False,
             )
             MembershipModel.objects.create(
                 user=user,
                 organization_id=org_id,
                 role='staff',
             )
+            generated_credentials = {'username': username, 'password': password}
+
+        # Si no se especifican módulos, hereda todos los de la org
+        allowed_modules = d.get('allowed_modules') or []
+        if not allowed_modules:
+            from apps.organizations.models import OrganizationModel
+            try:
+                org = OrganizationModel.objects.get(pk=org_id)
+                allowed_modules = org.enabled_modules
+            except OrganizationModel.DoesNotExist:
+                allowed_modules = []
 
         worker = WorkerModel.objects.create(
             organization_id=org_id,
@@ -100,8 +160,12 @@ class WorkerListCreateView(APIView):
             email=d.get('email', ''),
             phone=d.get('phone', ''),
             position=d.get('position', ''),
+            allowed_modules=allowed_modules,
         )
-        return Response(WorkerReadSerializer(_worker_to_dict(worker)).data, status=status.HTTP_201_CREATED)
+        return Response(
+            WorkerReadSerializer(_worker_to_dict(worker, generated_credentials)).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class WorkerDetailView(APIView):
@@ -140,7 +204,6 @@ class TaskListCreateView(APIView):
     def get(self, request):
         org_id = _get_org_id(request)
 
-        # Si el usuario es trabajador con cuenta, solo ve sus tareas
         role = request.auth.get('role') if request.auth else None
         if role == 'staff':
             try:

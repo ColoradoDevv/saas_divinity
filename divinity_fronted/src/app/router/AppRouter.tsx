@@ -3,14 +3,19 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom
 
 import { useOrgStore, applyOrgColor } from '@/app/store/org';
 import { useThemeStore } from '@/app/store/theme';
+import { AdminRoute } from '@/modules/auth/components/AdminRoute';
 import { PrivateRoute } from '@/modules/auth/components/PrivateRoute';
 import { ForgotPasswordPage } from '@/modules/auth/pages/ForgotPasswordPage';
 import { LoginPage } from '@/modules/auth/pages/LoginPage';
+import { AdminDashboardPage } from '@/modules/admin/pages/AdminDashboardPage';
+import { AdminOrganizationsPage } from '@/modules/admin/pages/AdminOrganizationsPage';
+import { AdminPaymentsPage } from '@/modules/admin/pages/AdminPaymentsPage';
+import { AdminSystemPage } from '@/modules/admin/pages/AdminSystemPage';
 import { ClientsPage } from '@/modules/clients/pages/ClientsPage';
 import { DashboardPage } from '@/modules/dashboard/pages/DashboardPage';
 import { OnboardingPage } from '@/modules/onboarding/pages/OnboardingPage';
-import { SuperAdminPage } from '@/modules/super/pages/SuperAdminPage';
 import { WorkersPage } from '@/modules/workers/pages/WorkersPage';
+import { AdminLayout } from '@/shared/layouts/AdminLayout';
 import { DashboardLayout } from '@/shared/layouts/DashboardLayout';
 import {
   md3BodyLargeClass,
@@ -49,6 +54,14 @@ const ProtectedLayout = () => (
   </PrivateRoute>
 );
 
+const AdminProtectedLayout = () => (
+  <AdminRoute>
+    <AdminLayout>
+      <Outlet />
+    </AdminLayout>
+  </AdminRoute>
+);
+
 export const AppRouter = () => {
   const isDark = useThemeStore((state) => state.isDark);
   const organization = useOrgStore((state) => state.organization);
@@ -70,12 +83,20 @@ export const AppRouter = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-        {/* Rutas protegidas */}
+        {/* Rutas del superadmin */}
+        <Route element={<AdminProtectedLayout />}>
+          <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/admin/organizations" element={<AdminOrganizationsPage />} />
+          <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+          <Route path="/admin/system" element={<AdminSystemPage />} />
+        </Route>
+
+        {/* Rutas protegidas de usuario */}
         <Route element={<ProtectedLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/super" element={<SuperAdminPage />} />
+          <Route path="/super" element={<Navigate to="/admin" replace />} />
           <Route path="/clients" element={<ClientsPage />} />
           <Route path="/workers" element={<WorkersPage />} />
           <Route path="/payments" element={<PlaceholderPage title="Pagos" />} />

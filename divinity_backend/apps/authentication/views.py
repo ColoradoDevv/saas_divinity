@@ -58,7 +58,24 @@ class LoginView(APIView):
         except NoMembershipFound as exc:
             raise PermissionDenied(detail=str(exc))
 
-        output = AuthSessionSerializer(auth_session.to_primitives()).data
+        primitives = auth_session.to_primitives()
+
+        # Para staff: enriquecer la respuesta del login con position y allowed_modules
+        if primitives.get('membership') and primitives['membership'].get('role') == 'staff':
+            from apps.workers.models import WorkerModel
+            org_id = primitives['membership']['organization']['id']
+            try:
+                worker = WorkerModel.objects.get(user_id=auth_session.user.id, organization_id=org_id)
+                primitives['membership']['position'] = worker.position or None
+                primitives['membership']['allowed_modules'] = worker.allowed_modules
+            except WorkerModel.DoesNotExist:
+                primitives['membership']['position'] = None
+                primitives['membership']['allowed_modules'] = primitives['membership']['organization'].get('enabled_modules', [])
+        elif primitives.get('membership'):
+            primitives['membership']['position'] = None
+            primitives['membership']['allowed_modules'] = None
+
+        output = AuthSessionSerializer(primitives).data
         return Response(output, status=status.HTTP_200_OK)
 
 
@@ -76,9 +93,29 @@ class MeView(APIView):
         org_repo = DjangoORMOrganizationRepository()
         membership = org_repo.get_primary_membership(request.user.id)
 
+        membership_data = None
+        if membership:
+            membership_data = membership.to_primitives()
+            # Para usuarios staff, buscar sus módulos permitidos en el perfil de trabajador
+            if membership.role == 'staff':
+                from apps.workers.models import WorkerModel
+                try:
+                    worker = WorkerModel.objects.get(
+                        user=request.user,
+                        organization_id=membership.organization.id,
+                    )
+                    membership_data['allowed_modules'] = worker.allowed_modules
+                    membership_data['position'] = worker.position or None
+                except WorkerModel.DoesNotExist:
+                    membership_data['allowed_modules'] = membership.organization.enabled_modules
+                    membership_data['position'] = None
+            else:
+                membership_data['allowed_modules'] = None
+                membership_data['position'] = None
+
         data = {
             'user': user.to_primitives(),
-            'membership': membership.to_primitives() if membership else None,
+            'membership': membership_data,
         }
         output = MeResponseSerializer(data).data
         return Response(output, status=status.HTTP_200_OK)

@@ -1,5 +1,7 @@
 import logging
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
@@ -8,6 +10,7 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.text import slugify
 from rest_framework import permissions, status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -18,11 +21,14 @@ from .serializers import (
     MembershipSerializer,
     OnboardingSerializer,
     OrganizationSerializer,
+    PaymentUpdateSerializer,
     UpdateOrganizationSerializer,
 )
 
 logger = logging.getLogger(__name__)
 UserModel = get_user_model()
+
+ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'svg', 'webp', 'gif'}
 
 
 def _require_superuser(request):
@@ -45,10 +51,11 @@ class SuperOrganizationListCreateView(APIView):
 
     def get(self, request):
         _require_superuser(request)
-        orgs = OrganizationModel.objects.prefetch_related('memberships__user').all()
+        orgs = OrganizationModel.objects.prefetch_related('memberships__user', 'workers').all()
         data = []
         for org in orgs:
             admin_membership = org.memberships.filter(role='admin').first()
+            worker_count = org.workers.filter(is_active=True).count()
             data.append({
                 'id': org.id,
                 'name': org.name,
@@ -59,6 +66,10 @@ class SuperOrganizationListCreateView(APIView):
                 'enabled_modules': org.enabled_modules,
                 'admin_email': admin_membership.user.email if admin_membership else None,
                 'member_count': org.memberships.filter(is_active=True).count(),
+                'worker_count': worker_count,
+                'payment_status': org.payment_status,
+                'last_payment_date': org.last_payment_date,
+                'next_payment_date': org.next_payment_date,
                 'created_at': org.created_at,
             })
         return Response(data)
@@ -70,7 +81,6 @@ class SuperOrganizationListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
 
-        # Generar slug único
         base_slug = slugify(d['name'])
         slug = base_slug
         counter = 1
@@ -78,15 +88,13 @@ class SuperOrganizationListCreateView(APIView):
             slug = f'{base_slug}-{counter}'
             counter += 1
 
-        # Crear organización
         org = OrganizationModel.objects.create(
             name=d['name'],
             slug=slug,
-            plan=d.get('plan', 'free'),
+            plan=d.get('plan', 'pro'),
             enabled_modules=d.get('enabled_modules', ['clients']),
         )
 
-        # Crear usuario admin de la empresa
         if UserModel.objects.filter(email=d['admin_email']).exists():
             raise ValidationError({'admin_email': 'Ya existe una cuenta con ese correo.'})
 
@@ -96,6 +104,8 @@ class SuperOrganizationListCreateView(APIView):
             password=d['admin_password'],
             first_name=d.get('admin_first_name', ''),
             last_name=d.get('admin_last_name', ''),
+            is_staff=True,   # Admins de empresa tienen acceso al panel Django
+            is_superuser=False,
         )
 
         MembershipModel.objects.create(
@@ -111,6 +121,30 @@ class SuperOrganizationListCreateView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class SuperPaymentUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk):
+        _require_superuser(request)
+        try:
+            org = OrganizationModel.objects.get(pk=pk)
+        except OrganizationModel.DoesNotExist:
+            raise NotFound('Organización no encontrada.')
+
+        serializer = PaymentUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        org.payment_status = d['payment_status']
+        if 'last_payment_date' in d:
+            org.last_payment_date = d['last_payment_date']
+        if 'next_payment_date' in d:
+            org.next_payment_date = d['next_payment_date']
+        org.save()
+
+        return Response(OrganizationSerializer(org).data)
 
 
 # ─── Organization self-service ────────────────────────────────────────────────
@@ -139,6 +173,42 @@ class OrganizationDetailView(APIView):
             setattr(org, field, value)
         org.save()
         return Response(OrganizationSerializer(org).data)
+
+
+class OrganizationLogoUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        org_id = _require_org_admin(request)
+        file = request.FILES.get('logo')
+        if not file:
+            raise ValidationError({'logo': 'No se envió ningún archivo.'})
+
+        name_parts = file.name.rsplit('.', 1)
+        ext = name_parts[-1].lower() if len(name_parts) > 1 else ''
+        if ext not in ALLOWED_LOGO_EXTENSIONS:
+            raise ValidationError({'logo': f'Formato no permitido. Usa: {", ".join(ALLOWED_LOGO_EXTENSIONS)}'})
+
+        filename = f'logos/org_{org_id}.{ext}'
+        media_root = Path(settings.MEDIA_ROOT)
+        logo_dir = media_root / 'logos'
+        logo_dir.mkdir(parents=True, exist_ok=True)
+
+        dest = media_root / filename
+        with open(dest, 'wb') as f:
+            for chunk in file.chunks():
+                f.write(chunk)
+
+        try:
+            org = OrganizationModel.objects.get(pk=org_id)
+        except OrganizationModel.DoesNotExist:
+            raise NotFound('Organización no encontrada.')
+
+        org.logo_url = f'{settings.MEDIA_URL}{filename}'
+        org.save()
+
+        return Response({'logo_url': org.logo_url})
 
 
 class OnboardingCompleteView(APIView):

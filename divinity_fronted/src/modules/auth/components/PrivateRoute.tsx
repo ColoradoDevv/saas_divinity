@@ -16,12 +16,23 @@ interface PrivateRouteProps {
   children: ReactNode;
 }
 
+// Módulos requeridos por ruta
+const ROUTE_MODULES: Record<string, string> = {
+  '/clients': 'clients',
+  '/workers': 'workers',
+  '/payments': 'payments',
+  '/attendance': 'attendance',
+  '/reports': 'reports',
+};
+
 export const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const location = useLocation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isBootstrapping = useAuthStore((state) => state.isBootstrapping);
+  const user = useAuthStore((state) => state.user);
   const organization = useOrgStore((state) => state.organization);
   const role = useOrgStore((state) => state.role);
+  const allowedModules = useOrgStore((state) => state.allowedModules);
 
   useAuthBootstrap();
 
@@ -44,8 +55,12 @@ export const PrivateRoute = ({ children }: PrivateRouteProps) => {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
+  // Superadmin siempre va a su propio panel
+  if (user?.is_superuser) {
+    return <Navigate to="/admin" replace />;
+  }
+
   // Redirigir a onboarding si la organización no completó la configuración inicial
-  // (solo aplica a admins, no a superusuarios ni a la propia ruta de onboarding)
   const isOnboardingRoute = location.pathname === '/onboarding';
   const isSuperRoute = location.pathname === '/super';
   const needsOnboarding =
@@ -57,6 +72,18 @@ export const PrivateRoute = ({ children }: PrivateRouteProps) => {
 
   if (needsOnboarding) {
     return <Navigate to="/onboarding" replace />;
+  }
+
+  // Protección de rutas por módulo: si el usuario tiene restricción de módulos
+  // (allowedModules !== null = es staff), bloquear acceso a rutas no permitidas
+  if (allowedModules !== null) {
+    const requiredModule = Object.entries(ROUTE_MODULES).find(([route]) =>
+      location.pathname.startsWith(route)
+    )?.[1];
+
+    if (requiredModule && !allowedModules.includes(requiredModule)) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;

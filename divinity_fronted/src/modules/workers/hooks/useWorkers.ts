@@ -1,15 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { workerService } from '../services/workerService';
-import type { CreateTaskPayload, CreateWorkerPayload, UpdateTaskPayload } from '../types';
+import type { CreateTaskPayload, CreateWorkerPayload, UpdateTaskPayload, UpdateWorkerPayload, WorkerCreationResponse } from '../types';
 
 export const useWorkers = () =>
   useQuery({ queryKey: ['workers'], queryFn: workerService.getWorkers });
 
 export const useCreateWorker = () => {
   const qc = useQueryClient();
-  return useMutation({
+  return useMutation<WorkerCreationResponse, Error, CreateWorkerPayload>({
     mutationFn: (payload: CreateWorkerPayload) => workerService.createWorker(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workers'] }),
+  });
+};
+
+export const useUpdateWorker = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: UpdateWorkerPayload }) =>
+      workerService.updateWorker(id, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['workers'] }),
   });
 };

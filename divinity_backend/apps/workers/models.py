@@ -21,6 +21,8 @@ class WorkerModel(models.Model):
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=30, blank=True)
     position = models.CharField(max_length=80, blank=True)  # "Barbero", "Cajero", etc.
+    # Módulos del sistema que el trabajador puede ver (subconjunto de org.enabled_modules)
+    allowed_modules = models.JSONField(default=list)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

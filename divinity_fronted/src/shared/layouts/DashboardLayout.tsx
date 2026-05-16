@@ -115,12 +115,14 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const clearOrganization = useOrgStore((state) => state.clearOrganization);
   const isDark = useThemeStore((state) => state.isDark);
 
+  const allowedModules = useOrgStore((state) => state.allowedModules);
+  const position = useOrgStore((state) => state.position);
   const enabledModules = organization?.enabled_modules ?? [];
-  // Sin org o sin módulos configurados → muestra todo. Solo filtra cuando
-  // la org tiene una lista explícita de módulos habilitados.
-  const filterModules = organization !== null && enabledModules.length > 0;
+  // Staff: usar sus módulos permitidos. Admin/manager: usar módulos de la org.
+  const activeModules = allowedModules !== null ? allowedModules : enabledModules;
+  const filterModules = organization !== null && activeModules.length > 0;
   const navigation = ALL_NAV.filter(
-    (item) => item.module === null || !filterModules || enabledModules.includes(item.module),
+    (item) => item.module === null || !filterModules || activeModules.includes(item.module),
   );
 
   const handleLogout = () => {
@@ -132,8 +134,11 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const roleLabel: Record<string, string> = {
     admin: 'Administrador',
     manager: 'Gerente',
-    staff: 'Staff',
   };
+  // Para staff mostramos su cargo; si no tiene, el label del rol
+  const roleBadgeText = role === 'staff'
+    ? (position || 'Staff')
+    : (roleLabel[role ?? ''] ?? role);
 
   return (
     <div className="flex h-full flex-col">
@@ -230,7 +235,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         {/* Role badge */}
         {role && (
           <div className="mt-2.5 inline-flex items-center rounded-full border border-secondary/20 bg-secondary-container/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-on-secondary-container">
-            {roleLabel[role] ?? role}
+            {roleBadgeText}
           </div>
         )}
 
