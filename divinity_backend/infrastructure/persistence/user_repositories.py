@@ -10,7 +10,16 @@ UserModel = get_user_model()
 
 
 class DjangoORMUserRepository(UserRepositoryInterface):
-    def _to_entity(self, user: UserModel) -> AuthenticatedUser:
+    def _to_entity(self, user) -> AuthenticatedUser:
+        from apps.organizations.models import MembershipModel
+
+        membership = (
+            MembershipModel.objects
+            .filter(user_id=user.pk, is_active=True)
+            .select_related('organization')
+            .first()
+        )
+
         return AuthenticatedUser(
             id=user.id,
             username=user.get_username(),
@@ -20,12 +29,10 @@ class DjangoORMUserRepository(UserRepositoryInterface):
             is_active=user.is_active,
             is_staff=user.is_staff,
             is_superuser=user.is_superuser,
-            organization_id=None,
+            organization_id=membership.organization_id if membership else None,
         )
 
     def authenticate(self, email: str, password: str) -> Optional[AuthenticatedUser]:
-        # Buscar por email primero; si no existe, intentar por username
-        # (necesario para cuentas con credenciales auto-generadas)
         user = None
         try:
             user = UserModel.objects.get(email__iexact=email)

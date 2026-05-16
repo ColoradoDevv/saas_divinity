@@ -1,0 +1,7 @@
+# Added by code-review-graph
+.code-review-graph/
+
+# Environment
+.env
+.env.local
+*.env

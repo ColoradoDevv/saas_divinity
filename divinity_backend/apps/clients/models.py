@@ -6,7 +6,6 @@ class ClientModel(models.Model):
         'organizations.OrganizationModel',
         on_delete=models.CASCADE,
         related_name='clients',
-        null=True,  # null durante migración; se hará requerido en producción
     )
     first_name = models.CharField(max_length=60)
     last_name = models.CharField(max_length=60)

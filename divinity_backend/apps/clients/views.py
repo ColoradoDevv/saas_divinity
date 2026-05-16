@@ -2,32 +2,35 @@ import dataclasses
 
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 from application.clients.dtos import CreateClientDTO
 from application.clients.services import CreateClientService
+from infrastructure.middleware.tenant import module_permission
 from infrastructure.notifications.email_service import EmailNotificationService
 from infrastructure.persistence.repositories import DjangoORMClientRepository
 
 from .serializers import ClientReadSerializer, CreateClientSerializer, UpdateClientSerializer
 
-
-def _get_org_id(request) -> int:
-    """Extrae organization_id del JWT. Lanza PermissionDenied si no existe."""
-    if request.auth and 'organization_id' in request.auth:
-        return int(request.auth['organization_id'])
-    raise PermissionDenied(
-        detail='Tu sesión no tiene contexto de organización. Inicia sesión nuevamente.'
-    )
+ClientsModuleEnabled = module_permission('clients')
 
 
 class ClientViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, ClientsModuleEnabled]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._repository = DjangoORMClientRepository()
         self._notifier = EmailNotificationService()
+
+    def _org_id(self, request) -> int:
+        org = getattr(request, 'organization', None)
+        if org is None:
+            raise PermissionDenied(
+                detail='Tu sesión no tiene contexto de organización. Inicia sesión nuevamente.'
+            )
+        return org.id
 
     def _create_service(self) -> CreateClientService:
         return CreateClientService(
@@ -36,13 +39,19 @@ class ClientViewSet(viewsets.ViewSet):
         )
 
     def list(self, request):
-        org_id = _get_org_id(request)
+        org_id = self._org_id(request)
         clients = self._repository.list_by_organization(org_id)
         data = [ClientReadSerializer(c.to_primitives()).data for c in clients]
+
+        paginator = PageNumberPagination()
+        paginator.page_size = 20
+        page = paginator.paginate_queryset(data, request)
+        if page is not None:
+            return paginator.get_paginated_response(page)
         return Response(data, status=status.HTTP_200_OK)
 
     def create(self, request):
-        org_id = _get_org_id(request)
+        org_id = self._org_id(request)
         serializer = CreateClientSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -60,14 +69,14 @@ class ClientViewSet(viewsets.ViewSet):
         return Response(output, status=status.HTTP_201_CREATED)
 
     def retrieve(self, request, pk=None):
-        org_id = _get_org_id(request)
+        org_id = self._org_id(request)
         client = self._repository.get_by_id(int(pk), org_id)
         if client is None:
             raise NotFound(detail='Cliente no encontrado.')
         return Response(ClientReadSerializer(client.to_primitives()).data)
 
     def update(self, request, pk=None):
-        org_id = _get_org_id(request)
+        org_id = self._org_id(request)
         client = self._repository.get_by_id(int(pk), org_id)
         if client is None:
             raise NotFound(detail='Cliente no encontrado.')
@@ -92,7 +101,7 @@ class ClientViewSet(viewsets.ViewSet):
         return Response(ClientReadSerializer(persisted.to_primitives()).data)
 
     def destroy(self, request, pk=None):
-        org_id = _get_org_id(request)
+        org_id = self._org_id(request)
         deleted = self._repository.deactivate(int(pk), org_id)
         if not deleted:
             raise NotFound(detail='Cliente no encontrado.')
