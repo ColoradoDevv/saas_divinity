@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import loginBackground from '@/assets/images/bg.jpg';
+import imagotipoBlanco from '@/assets/images/brand/imagotipo-horizontal-blanco.svg';
 import {
   md3BodyLargeClass,
   md3BodyMediumClass,
@@ -48,11 +49,14 @@ export const ForgotPasswordPage = () => {
     <div
       className="grid min-h-screen place-items-center bg-cover bg-center px-4 py-8"
       style={{
-        backgroundImage: `linear-gradient(rgba(25, 28, 32, 0.42), rgba(25, 28, 32, 0.42)), url(${loginBackground})`,
+        backgroundImage: `linear-gradient(rgba(10, 18, 40, 0.55), rgba(10, 18, 40, 0.55)), url(${loginBackground})`,
       }}
     >
+      <div className="flex w-full max-w-[440px] flex-col items-center gap-6">
+        <img src={imagotipoBlanco} alt="Divinity" className="h-9 w-auto" />
+
       <section
-        className={`${md3SurfaceClass} w-full max-w-[440px] bg-surface/92 px-6 py-8 backdrop-blur-md sm:px-8 sm:py-10`}
+        className={`${md3SurfaceClass} w-full bg-surface/92 px-6 py-8 backdrop-blur-md sm:px-8 sm:py-10`}
       >
         {submitted ? (
           /* Estado de éxito */
@@ -157,6 +161,7 @@ export const ForgotPasswordPage = () => {
           </>
         )}
       </section>
+      </div>
     </div>
   );
 };

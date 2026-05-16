@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
+import isotipoBlanco from '@/assets/images/brand/isotipo-blanco.svg';
+import isotipoColor from '@/assets/images/brand/isotipo-color.svg';
 import { useAuthStore } from '@/app/store/auth';
 import { useOrgStore } from '@/app/store/org';
 import { useThemeStore } from '@/app/store/theme';
@@ -26,11 +28,6 @@ const LogoutIcon = () => (
   </svg>
 );
 
-const BrandIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 2 2 7l10 5 10-5-10-5Z" /><path d="m2 17 10 5 10-5" /><path d="m2 12 10 5 10-5" />
-  </svg>
-);
 
 const SunIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -108,10 +105,14 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const organization = useOrgStore((state) => state.organization);
   const role = useOrgStore((state) => state.role);
   const clearOrganization = useOrgStore((state) => state.clearOrganization);
+  const isDark = useThemeStore((state) => state.isDark);
 
   const enabledModules = organization?.enabled_modules ?? [];
+  // Sin org o sin módulos configurados → muestra todo. Solo filtra cuando
+  // la org tiene una lista explícita de módulos habilitados.
+  const filterModules = organization !== null && enabledModules.length > 0;
   const navigation = ALL_NAV.filter(
-    (item) => item.module === null || enabledModules.includes(item.module),
+    (item) => item.module === null || !filterModules || enabledModules.includes(item.module),
   );
 
   const handleLogout = () => {
@@ -132,9 +133,11 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       {/* Brand — muestra nombre de la organización si está disponible */}
       <div className="flex items-center justify-between px-5 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary shadow-sm">
-            <BrandIcon />
-          </div>
+          <img
+            src={isDark ? isotipoBlanco : isotipoColor}
+            alt="Divinity"
+            className="h-9 w-9 flex-shrink-0"
+          />
           <div className="min-w-0">
             <p className="truncate text-[0.9375rem] font-semibold leading-tight tracking-tight text-on-surface">
               {organization?.name ?? 'Divinity'}
