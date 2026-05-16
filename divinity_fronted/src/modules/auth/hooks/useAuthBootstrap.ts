@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 
 import { useAuthStore } from '@/app/store/auth';
+import { applyMembership } from '@/app/store/org';
 
 import { authService } from '../services/authService';
 
@@ -16,22 +17,19 @@ export const useAuthBootstrap = () => {
 
     const bootstrap = async () => {
       if (!accessToken || !refreshToken) {
-        if (isMounted) {
-          clearSession();
-        }
+        if (isMounted) clearSession();
         return;
       }
 
       try {
-        const user = await authService.getCurrentUser();
+        const { user, membership } = await authService.getCurrentUser();
         if (isMounted) {
           setUser(user);
+          applyMembership(membership);
           setBootstrapping(false);
         }
       } catch {
-        if (isMounted) {
-          clearSession();
-        }
+        if (isMounted) clearSession();
       }
     };
 

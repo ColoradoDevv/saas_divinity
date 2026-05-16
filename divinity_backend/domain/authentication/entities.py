@@ -1,4 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
+
+from domain.organizations.entities import Membership
 
 
 @dataclass(frozen=True)
@@ -11,6 +14,7 @@ class AuthenticatedUser:
     is_active: bool
     is_staff: bool
     is_superuser: bool
+    organization_id: Optional[int] = field(default=None)
 
     def to_primitives(self) -> dict:
         return {
@@ -22,6 +26,7 @@ class AuthenticatedUser:
             'is_active': self.is_active,
             'is_staff': self.is_staff,
             'is_superuser': self.is_superuser,
+            'organization_id': self.organization_id,
         }
 
 
@@ -41,9 +46,14 @@ class TokenPair:
 class AuthSession:
     user: AuthenticatedUser
     tokens: TokenPair
+    membership: Optional[Membership]
 
     def to_primitives(self) -> dict:
+        user_data = self.user.to_primitives()
+        if self.membership:
+            user_data['organization_id'] = self.membership.organization.id
         return {
-            'user': self.user.to_primitives(),
+            'user': user_data,
             'tokens': self.tokens.to_primitives(),
+            'membership': self.membership.to_primitives() if self.membership else None,
         }

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="divinityGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0B1F5C"/>
+    </linearGradient>
+    <linearGradient id="haloGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Halo / aureola superior (elipse en perspectiva) -->
+  <ellipse cx="100" cy="62" rx="58" ry="14" fill="none" stroke="url(#haloGrad)" stroke-width="7" stroke-linecap="round"/>
+  
+  <!-- Cuerpo principal: D estilizada con forma de monumento/columna celestial -->
+  <path d="M 60 88 
+           L 60 168 
+           L 110 168 
+           Q 152 168 152 128 
+           Q 152 88 110 88 
+           Z" 
+        fill="url(#divinityGrad)"/>
+  
+  <!-- Contraforma interior (la apertura de la D) -->
+  <path d="M 82 110 
+           L 82 146 
+           L 108 146 
+           Q 128 146 128 128 
+           Q 128 110 108 110 
+           Z" 
+        fill="#FFFFFF"/>
+  
+  <!-- Nodo central (el "punto divino" / conexión de datos) -->
+  <circle cx="100" cy="128" r="6" fill="url(#haloGrad)"/>
+</svg>
