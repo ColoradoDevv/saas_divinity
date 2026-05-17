@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
+import { useAuthStore } from '@/app/store/auth';
 import { useOrgStore, applyOrgColor } from '@/app/store/org';
 import { useThemeStore } from '@/app/store/theme';
 import { AdminRoute } from '@/modules/auth/components/AdminRoute';
@@ -11,6 +12,7 @@ import { AdminDashboardPage } from '@/modules/admin/pages/AdminDashboardPage';
 import { AdminOrganizationsPage } from '@/modules/admin/pages/AdminOrganizationsPage';
 import { AdminPaymentsPage } from '@/modules/admin/pages/AdminPaymentsPage';
 import { AdminSystemPage } from '@/modules/admin/pages/AdminSystemPage';
+import { AuditPage } from '@/modules/audit/pages/AuditPage';
 import { ClientsPage } from '@/modules/clients/pages/ClientsPage';
 import { DashboardPage } from '@/modules/dashboard/pages/DashboardPage';
 import { OnboardingPage } from '@/modules/onboarding/pages/OnboardingPage';
@@ -53,6 +55,14 @@ const ProtectedLayout = () => (
     </DashboardLayout>
   </PrivateRoute>
 );
+
+/** Guard para rutas visibles solo a is_staff o role=admin. */
+const AdminOrStaffRoute = ({ children }: { children: ReactNode }) => {
+  const user = useAuthStore((state) => state.user);
+  const role = useOrgStore((state) => state.role);
+  if (!user?.is_staff && role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
 
 const AdminProtectedLayout = () => (
   <AdminRoute>
@@ -101,6 +111,14 @@ export const AppRouter = () => {
           <Route path="/workers" element={<WorkersPage />} />
           <Route path="/payments" element={<PlaceholderPage title="Pagos" />} />
           <Route path="/attendance" element={<PlaceholderPage title="Asistencia" />} />
+          <Route
+            path="/audit"
+            element={
+              <AdminOrStaffRoute>
+                <AuditPage />
+              </AdminOrStaffRoute>
+            }
+          />
           <Route path="/reports" element={<PlaceholderPage title="Reportes" />} />
         </Route>
 
