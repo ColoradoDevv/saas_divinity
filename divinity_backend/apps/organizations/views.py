@@ -1,10 +1,12 @@
 import logging
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
+from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.text import slugify
@@ -15,13 +17,21 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .models import MembershipModel, OrganizationModel
+from domain.authentication.entities import AuthenticatedUser
+from domain.organizations.entities import Membership as MembershipEntity
+from domain.organizations.entities import Organization as OrganizationEntity
+from infrastructure.authentication.jwt import SimpleJWTTokenProvider
+
+from .models import InvitationModel, MembershipModel, OrganizationModel
 from .serializers import (
+    AcceptInviteSerializer,
     CreateOrganizationSerializer,
+    InviteSerializer,
     MembershipSerializer,
     OnboardingSerializer,
     OrganizationSerializer,
     PaymentUpdateSerializer,
+    RegisterOrganizationSerializer,
     UpdateOrganizationSerializer,
 )
 
@@ -265,6 +275,208 @@ class MembershipListView(APIView):
             for m in memberships
         ]
         return Response(MembershipSerializer(data, many=True).data)
+
+
+# ─── Public registration ──────────────────────────────────────────────────────
+
+class RegisterOrganizationView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = RegisterOrganizationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        org = OrganizationModel.objects.create(
+            name=d['name'],
+            slug=d['slug'],
+            payment_status='trial',
+            enabled_modules=['clients'],
+        )
+
+        user = UserModel.objects.create_user(
+            username=d['email'],
+            email=d['email'],
+            password=d['password'],
+            first_name=d.get('first_name', ''),
+            last_name=d.get('last_name', ''),
+        )
+
+        MembershipModel.objects.create(
+            user=user,
+            organization=org,
+            role='admin',
+            is_active=True,
+        )
+
+        org_entity = OrganizationEntity(
+            id=org.id,
+            name=org.name,
+            slug=org.slug,
+            plan=org.plan,
+            enabled_modules=tuple(org.enabled_modules),
+            is_active=org.is_active,
+            onboarding_completed=org.onboarding_completed,
+            primary_color=org.primary_color,
+            logo_url=org.logo_url,
+        )
+        auth_user = AuthenticatedUser(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            is_active=user.is_active,
+            is_staff=user.is_staff,
+            is_superuser=user.is_superuser,
+            organization_id=org.id,
+        )
+        membership_entity = MembershipEntity(
+            user_id=user.id,
+            organization=org_entity,
+            role='admin',
+        )
+        tokens = SimpleJWTTokenProvider().create_token_pair(auth_user, membership_entity)
+
+        return Response(
+            {
+                'user': auth_user.to_primitives(),
+                'tokens': tokens.to_primitives(),
+                'membership': {
+                    'role': 'admin',
+                    'organization': org_entity.to_primitives(),
+                    'allowed_modules': None,
+                    'position': None,
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ─── Invitations ──────────────────────────────────────────────────────────────
+
+class InviteView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        org_id = _require_org_admin(request)
+        serializer = InviteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        try:
+            org = OrganizationModel.objects.get(pk=org_id)
+        except OrganizationModel.DoesNotExist:
+            raise NotFound('Organización no encontrada.')
+
+        invitation = InvitationModel.objects.create(
+            email=d['email'],
+            role=d['role'],
+            organization=org,
+            created_by=request.user,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        logger.info(
+            'Invitation created: token=%s email=%s org=%s role=%s',
+            invitation.token, invitation.email, org.slug, invitation.role,
+        )
+        return Response(
+            {
+                'token': str(invitation.token),
+                'email': invitation.email,
+                'role': invitation.role,
+                'expires_at': invitation.expires_at,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AcceptInviteView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = AcceptInviteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        try:
+            invitation = InvitationModel.objects.select_related('organization').get(
+                token=d['token']
+            )
+        except InvitationModel.DoesNotExist:
+            raise ValidationError({'token': 'Invitación no válida.'})
+
+        if invitation.used:
+            raise ValidationError({'token': 'Esta invitación ya fue utilizada.'})
+        if invitation.expires_at < timezone.now():
+            raise ValidationError({'token': 'Esta invitación ha expirado.'})
+
+        if UserModel.objects.filter(email__iexact=invitation.email).exists():
+            raise ValidationError({'token': 'Ya existe una cuenta con este correo.'})
+
+        user = UserModel.objects.create_user(
+            username=invitation.email,
+            email=invitation.email,
+            password=d['password'],
+            first_name=d.get('first_name', ''),
+            last_name=d.get('last_name', ''),
+        )
+
+        MembershipModel.objects.create(
+            user=user,
+            organization=invitation.organization,
+            role=invitation.role,
+            is_active=True,
+        )
+
+        invitation.used = True
+        invitation.save(update_fields=['used'])
+
+        org = invitation.organization
+        org_entity = OrganizationEntity(
+            id=org.id,
+            name=org.name,
+            slug=org.slug,
+            plan=org.plan,
+            enabled_modules=tuple(org.enabled_modules),
+            is_active=org.is_active,
+            onboarding_completed=org.onboarding_completed,
+            primary_color=org.primary_color,
+            logo_url=org.logo_url,
+        )
+        auth_user = AuthenticatedUser(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            is_active=user.is_active,
+            is_staff=user.is_staff,
+            is_superuser=user.is_superuser,
+            organization_id=org.id,
+        )
+        membership_entity = MembershipEntity(
+            user_id=user.id,
+            organization=org_entity,
+            role=invitation.role,
+        )
+        tokens = SimpleJWTTokenProvider().create_token_pair(auth_user, membership_entity)
+
+        return Response(
+            {
+                'user': auth_user.to_primitives(),
+                'tokens': tokens.to_primitives(),
+                'membership': {
+                    'role': invitation.role,
+                    'organization': org_entity.to_primitives(),
+                    'allowed_modules': None,
+                    'position': None,
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ─── ForgotPassword (preserved) ───────────────────────────────────────────────

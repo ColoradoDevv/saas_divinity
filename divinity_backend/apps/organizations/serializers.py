@@ -1,3 +1,5 @@
+from django.contrib.auth import get_user_model
+
 from rest_framework import serializers
 
 from apps.organizations.models import OrganizationModel
@@ -66,3 +68,39 @@ class MembershipSerializer(serializers.Serializer):
 class InviteMemberSerializer(serializers.Serializer):
     email = serializers.EmailField()
     role = serializers.ChoiceField(choices=['admin', 'manager', 'staff'], default='staff')
+
+
+class RegisterOrganizationSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=120)
+    slug = serializers.SlugField(max_length=80)
+    email = serializers.EmailField()
+    password = serializers.CharField(
+        write_only=True, min_length=8, style={'input_type': 'password'}
+    )
+    first_name = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
+    last_name = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
+
+    def validate_slug(self, value):
+        if OrganizationModel.objects.filter(slug=value).exists():
+            raise serializers.ValidationError('Este slug ya está en uso.')
+        return value
+
+    def validate_email(self, value):
+        UserModel = get_user_model()
+        if UserModel.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('Ya existe una cuenta con este correo.')
+        return value
+
+
+class InviteSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(choices=['admin', 'manager', 'staff'], default='staff')
+
+
+class AcceptInviteSerializer(serializers.Serializer):
+    token = serializers.UUIDField()
+    password = serializers.CharField(
+        write_only=True, min_length=8, style={'input_type': 'password'}
+    )
+    first_name = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
+    last_name = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
