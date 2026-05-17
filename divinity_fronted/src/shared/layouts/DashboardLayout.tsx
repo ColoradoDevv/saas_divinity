@@ -94,7 +94,6 @@ const NavIcons = {
 const ALL_NAV = [
   { to: '/dashboard',  label: 'Panel',          module: null },
   { to: '/members',    label: 'Miembros',       module: 'members' },
-  { to: '/clients',    label: 'Clientes',       module: 'clients' },
   { to: '/workers',    label: 'Trabajadores',   module: 'workers' },
   { to: '/payments',   label: 'Pagos',          module: 'payments' },
   { to: '/attendance', label: 'Asistencia',     module: 'attendance' },

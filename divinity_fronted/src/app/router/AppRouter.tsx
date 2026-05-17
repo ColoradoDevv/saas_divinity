@@ -11,7 +11,6 @@ import { AdminDashboardPage } from '@/modules/admin/pages/AdminDashboardPage';
 import { AdminOrganizationsPage } from '@/modules/admin/pages/AdminOrganizationsPage';
 import { AdminPaymentsPage } from '@/modules/admin/pages/AdminPaymentsPage';
 import { AdminSystemPage } from '@/modules/admin/pages/AdminSystemPage';
-import { ClientsPage } from '@/modules/clients/pages/ClientsPage';
 import { DashboardPage } from '@/modules/dashboard/pages/DashboardPage';
 import { MemberDetailPage } from '@/modules/members/pages/MemberDetailPage';
 import { MembersPage } from '@/modules/members/pages/MembersPage';
@@ -100,7 +99,6 @@ export const AppRouter = () => {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/super" element={<Navigate to="/admin" replace />} />
-          <Route path="/clients" element={<ClientsPage />} />
           <Route path="/members" element={<MembersPage />} />
           <Route path="/members/:id" element={<MemberDetailPage />} />
           <Route path="/settings/members" element={<MemberSettingsPage />} />
