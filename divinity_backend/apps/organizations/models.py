@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.db import models
 
@@ -8,6 +10,7 @@ class OrganizationModel(models.Model):
         ('enterprise', 'Enterprise'),
     ]
     PAYMENT_STATUS_CHOICES = [
+        ('trial', 'Prueba'),
         ('paid', 'Pagado'),
         ('unpaid', 'Pendiente'),
         ('overdue', 'Vencido'),
@@ -73,3 +76,32 @@ class MembershipModel(models.Model):
 
     def __str__(self) -> str:
         return f'{self.user} @ {self.organization} ({self.role})'
+
+
+class InvitationModel(models.Model):
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    email = models.EmailField()
+    role = models.CharField(
+        max_length=20, choices=MembershipModel.ROLE_CHOICES, default='staff'
+    )
+    organization = models.ForeignKey(
+        OrganizationModel,
+        on_delete=models.CASCADE,
+        related_name='invitations',
+    )
+    created_by = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='sent_invitations',
+    )
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'invitation'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f'Invitation({self.email} → {self.organization}, used={self.used})'

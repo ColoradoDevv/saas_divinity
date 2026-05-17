@@ -1,15 +1,25 @@
 from django.urls import path
 
 from .views import (
+    AcceptInviteView,
+    InviteView,
     MembershipListView,
     OnboardingCompleteView,
     OrganizationDetailView,
     OrganizationLogoUploadView,
+    RegisterOrganizationView,
     SuperOrganizationListCreateView,
     SuperPaymentUpdateView,
 )
 
 urlpatterns = [
+    # Registro público
+    path('register/', RegisterOrganizationView.as_view(), name='org-register'),
+
+    # Invitaciones
+    path('invite/', InviteView.as_view(), name='org-invite'),
+    path('invite/accept/', AcceptInviteView.as_view(), name='org-invite-accept'),
+
     # Super admin (solo superusuario)
     path('super/', SuperOrganizationListCreateView.as_view(), name='super-org-list-create'),
     path('super/<int:pk>/payment/', SuperPaymentUpdateView.as_view(), name='super-org-payment'),

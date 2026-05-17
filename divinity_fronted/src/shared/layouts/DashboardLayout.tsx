@@ -4,8 +4,9 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import isotipoBlanco from '@/assets/images/brand/isotipo-blanco.svg';
 import isotipoColor from '@/assets/images/brand/isotipo-color.svg';
 import { useAuthStore } from '@/app/store/auth';
-import { useOrgStore } from '@/app/store/org';
+import { applyMembership, useOrgStore } from '@/app/store/org';
 import { useThemeStore } from '@/app/store/theme';
+import { authService } from '@/modules/auth/services/authService';
 import { md3PageClass } from '@/shared/ui/material';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -110,10 +111,14 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
+  const organizations = useAuthStore((state) => state.organizations);
+  const setOrganizations = useAuthStore((state) => state.setOrganizations);
+  const setSession = useAuthStore((state) => state.setSession);
   const organization = useOrgStore((state) => state.organization);
   const role = useOrgStore((state) => state.role);
   const clearOrganization = useOrgStore((state) => state.clearOrganization);
   const isDark = useThemeStore((state) => state.isDark);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   const allowedModules = useOrgStore((state) => state.allowedModules);
   const position = useOrgStore((state) => state.position);
@@ -129,6 +134,22 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
     clearOrganization();
     clearSession();
     navigate('/login', { replace: true });
+  };
+
+  const handleSwitchOrg = async (orgId: number) => {
+    if (orgId === organization?.id || isSwitching) return;
+    setIsSwitching(true);
+    try {
+      const res = await authService.switchOrg(orgId);
+      setSession(res.tokens);
+      applyMembership(res.membership);
+      // Refresh org list to keep it current
+      const orgs = await authService.fetchOrganizations();
+      setOrganizations(orgs);
+      navigate('/dashboard', { replace: true });
+    } finally {
+      setIsSwitching(false);
+    }
   };
 
   const roleLabel: Record<string, string> = {
@@ -181,6 +202,25 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           </button>
         )}
       </div>
+
+      {/* Org switcher — solo visible si el usuario tiene más de una membresía */}
+      {organizations.length > 1 && (
+        <div className="mx-4 mb-2">
+          <select
+            value={organization?.id ?? ''}
+            onChange={(e) => handleSwitchOrg(Number(e.target.value))}
+            disabled={isSwitching}
+            aria-label="Cambiar organización"
+            className="w-full rounded-full border border-outline-variant bg-surface-container px-3 py-2 text-[0.8125rem] font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+          >
+            {organizations.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Divider */}
       <div className="mx-4 h-px bg-outline-variant/60" />

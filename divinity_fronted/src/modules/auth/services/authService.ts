@@ -1,6 +1,12 @@
 import { api, publicApi } from '@/shared/api/api';
 
-import type { AuthSessionResponse, LoginPayload, MeResponse } from '../types/auth';
+import type {
+  AuthSessionResponse,
+  LoginPayload,
+  MeResponse,
+  OrgSummary,
+  SwitchOrgResponse,
+} from '../types/auth';
 
 export const authService = {
   async login(payload: LoginPayload): Promise<AuthSessionResponse> {
@@ -15,5 +21,17 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<void> {
     await publicApi.post('/auth/forgot-password', { email });
+  },
+
+  async fetchOrganizations(): Promise<OrgSummary[]> {
+    const response = await api.get<OrgSummary[]>('/auth/organizations');
+    return response.data;
+  },
+
+  async switchOrg(organizationId: number): Promise<SwitchOrgResponse> {
+    const response = await api.post<SwitchOrgResponse>('/auth/switch-org', {
+      organization_id: organizationId,
+    });
+    return response.data;
   },
 };

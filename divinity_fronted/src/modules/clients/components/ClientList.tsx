@@ -1,3 +1,4 @@
+import { useOrgStore } from '@/app/store/org';
 import {
   md3BodyMediumClass,
   md3BodySmallClass,
@@ -30,6 +31,9 @@ export const ClientList = ({
   onDeleteConfirm,
   confirmingId,
 }: ClientListProps) => {
+  const role = useOrgStore((state) => state.role);
+  const isAdmin = role === 'admin';
+
   if (isLoading) {
     return (
       <section className={`${md3SurfaceHighClass} px-6 py-8 text-center`}>
@@ -108,16 +112,18 @@ export const ClientList = ({
                     >
                       Editar
                     </button>
-                    <button
-                      type="button"
-                      className={md3TextButtonClass.replace('text-primary', 'text-error').replace(
-                        'hover:bg-primary/8',
-                        'hover:bg-error/8',
-                      )}
-                      onClick={() => onDeleteRequest(client.id)}
-                    >
-                      Eliminar
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        className={md3TextButtonClass.replace('text-primary', 'text-error').replace(
+                          'hover:bg-primary/8',
+                          'hover:bg-error/8',
+                        )}
+                        onClick={() => onDeleteRequest(client.id)}
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </>
                 )}
               </div>

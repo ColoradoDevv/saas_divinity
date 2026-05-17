@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { useOrgStore } from '@/app/store/org';
 import {
   md3BodyLargeClass,
   md3FilledButtonClass,
@@ -22,6 +23,7 @@ import { Client } from '../types';
 type FeedbackTone = 'success' | 'info' | 'error';
 
 export const ClientsPage = () => {
+  const role = useOrgStore((state) => state.role);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
@@ -81,9 +83,11 @@ export const ClientsPage = () => {
             </p>
           </div>
 
-          <button type="button" className={md3FilledButtonClass}>
-            Nuevo cliente
-          </button>
+          {role !== 'viewer' && (
+            <button type="button" className={md3FilledButtonClass}>
+              Nuevo cliente
+            </button>
+          )}
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
