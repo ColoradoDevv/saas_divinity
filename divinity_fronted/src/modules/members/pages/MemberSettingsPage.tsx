@@ -318,7 +318,7 @@ export const MemberSettingsPage = () => {
                       <td className="px-4 py-3">
                         <input
                           className={`${md3TextFieldClass} py-1.5 text-sm`}
-                          value={cfg.label || FIELD_LABELS[cfg.field_name] ?? cfg.field_name}
+                          value={cfg.label || (FIELD_LABELS[cfg.field_name] ?? cfg.field_name)}
                           onChange={(e) => updateLocal(i, { label: e.target.value })}
                           placeholder={FIELD_LABELS[cfg.field_name]}
                         />
