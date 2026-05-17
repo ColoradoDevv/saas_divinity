@@ -80,12 +80,20 @@ const NavIcons = {
       <line x1="18" x2="18" y1="20" y2="10" /><line x1="12" x2="12" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="14" />
     </svg>
   ),
+  '/members': () => (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+      <path d="m15 17 2 2 4-4" />
+    </svg>
+  ),
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ALL_NAV = [
   { to: '/dashboard',  label: 'Panel',          module: null },
+  { to: '/members',    label: 'Miembros',       module: 'members' },
   { to: '/clients',    label: 'Clientes',       module: 'clients' },
   { to: '/workers',    label: 'Trabajadores',   module: 'workers' },
   { to: '/payments',   label: 'Pagos',          module: 'payments' },
@@ -213,6 +221,35 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           );
         })}
       </nav>
+
+      {/* Settings — solo admin */}
+      {role === 'admin' && (
+        <>
+          <div className="mx-4 my-3 h-px bg-outline-variant/60" />
+          <p className="mx-5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant/70">
+            Configuración
+          </p>
+          <nav className="space-y-0.5 px-3" aria-label="Configuración">
+            <NavLink
+              to="/settings/members"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-full px-4 py-[0.6875rem] text-[0.8125rem] font-medium tracking-[0.006rem] transition ${
+                  isActive
+                    ? 'bg-secondary-container text-on-secondary-container'
+                    : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface'
+                }`
+              }
+            >
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              Campos de miembros
+            </NavLink>
+          </nav>
+        </>
+      )}
 
       {/* User card */}
       <div className="mx-3 mb-4 mt-2 rounded-[20px] border border-outline-variant/50 bg-surface-container px-4 py-4">
