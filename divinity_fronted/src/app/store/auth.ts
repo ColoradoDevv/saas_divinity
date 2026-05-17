@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import type { AuthTokens, AuthUser } from '@/modules/auth/types/auth';
+import type { AuthTokens, AuthUser, OrgSummary } from '@/modules/auth/types/auth';
 
 interface AuthState {
   user: AuthUser | null;
@@ -10,10 +10,12 @@ interface AuthState {
   isAuthenticated: boolean;
   isBootstrapping: boolean;
   rememberMe: boolean;
+  organizations: OrgSummary[];
   setSession: (tokens: AuthTokens, user?: AuthUser | null) => void;
   setUser: (user: AuthUser | null) => void;
   setBootstrapping: (value: boolean) => void;
   setRememberMe: (value: boolean) => void;
+  setOrganizations: (orgs: OrgSummary[]) => void;
   clearSession: () => void;
 }
 
@@ -53,6 +55,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isBootstrapping: true,
       rememberMe: true,
+      organizations: [],
       setSession: (tokens, user = null) =>
         set({
           user,
@@ -68,6 +71,7 @@ export const useAuthStore = create<AuthState>()(
         })),
       setBootstrapping: (value) => set({ isBootstrapping: value }),
       setRememberMe: (value) => set({ rememberMe: value }),
+      setOrganizations: (orgs) => set({ organizations: orgs }),
       clearSession: () =>
         set({
           user: null,
@@ -76,6 +80,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isBootstrapping: false,
           rememberMe: true,
+          organizations: [],
         }),
     }),
     {
@@ -87,6 +92,7 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         rememberMe: state.rememberMe,
+        organizations: state.organizations,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setBootstrapping(true);

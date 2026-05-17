@@ -146,3 +146,105 @@ class ForgotPasswordView(APIView):
             {'detail': 'Si el correo existe, recibirás las instrucciones en breve.'},
             status=status.HTTP_200_OK,
         )
+
+
+# ─── Multi-org endpoints ──────────────────────────────────────────────────────
+
+class UserOrganizationsView(APIView):
+    """GET /api/auth/organizations/ — memberships activas del usuario autenticado."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.organizations.models import MembershipModel
+
+        memberships = (
+            MembershipModel.objects
+            .filter(user=request.user, is_active=True, organization__is_active=True)
+            .select_related('organization')
+            .order_by('joined_at')
+        )
+        data = [
+            {
+                'id': m.organization.id,
+                'name': m.organization.name,
+                'slug': m.organization.slug,
+                'role': m.role,
+            }
+            for m in memberships
+        ]
+        return Response(data)
+
+
+class SwitchOrgView(APIView):
+    """POST /api/auth/switch-org/ — cambia el contexto de organización en el token."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from apps.organizations.models import MembershipModel
+
+        from domain.authentication.entities import AuthenticatedUser
+        from domain.organizations.entities import Membership as MembershipEntity
+        from domain.organizations.entities import Organization as OrganizationEntity
+
+        org_id = request.data.get('organization_id')
+        if not org_id:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'organization_id': 'Este campo es requerido.'})
+
+        try:
+            membership = (
+                MembershipModel.objects
+                .select_related('organization')
+                .get(
+                    user=request.user,
+                    organization_id=org_id,
+                    is_active=True,
+                    organization__is_active=True,
+                )
+            )
+        except MembershipModel.DoesNotExist:
+            raise PermissionDenied('No perteneces a esa organización.')
+
+        org = membership.organization
+        org_entity = OrganizationEntity(
+            id=org.id,
+            name=org.name,
+            slug=org.slug,
+            plan=org.plan,
+            enabled_modules=tuple(org.enabled_modules),
+            is_active=org.is_active,
+            onboarding_completed=org.onboarding_completed,
+            primary_color=org.primary_color,
+            logo_url=org.logo_url,
+        )
+        auth_user = AuthenticatedUser(
+            id=request.user.id,
+            username=request.user.username,
+            email=request.user.email,
+            first_name=request.user.first_name,
+            last_name=request.user.last_name,
+            is_active=request.user.is_active,
+            is_staff=request.user.is_staff,
+            is_superuser=request.user.is_superuser,
+            organization_id=org.id,
+        )
+        membership_entity = MembershipEntity(
+            user_id=request.user.id,
+            organization=org_entity,
+            role=membership.role,
+        )
+        tokens = SimpleJWTTokenProvider().create_token_pair(auth_user, membership_entity)
+
+        return Response(
+            {
+                'tokens': tokens.to_primitives(),
+                'membership': {
+                    'role': membership.role,
+                    'organization': org_entity.to_primitives(),
+                    'allowed_modules': None,
+                    'position': None,
+                },
+            }
+        )

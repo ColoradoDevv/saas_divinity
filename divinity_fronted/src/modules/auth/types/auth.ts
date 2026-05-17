@@ -57,3 +57,17 @@ export interface MeResponse {
   user: AuthUser;
   membership: MembershipResponse | null;
 }
+
+/** Ítem de GET /api/auth/organizations/ */
+export interface OrgSummary {
+  id: number;
+  name: string;
+  slug: string;
+  role: string;
+}
+
+/** Respuesta de POST /api/auth/switch-org/ */
+export interface SwitchOrgResponse {
+  tokens: AuthTokens;
+  membership: MembershipResponse;
+}
