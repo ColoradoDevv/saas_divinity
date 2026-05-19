@@ -210,14 +210,6 @@ export const DashboardPage = () => {
               {organization.name}
             </span>
           )}
-          {role && (
-            <span className="inline-flex items-center rounded-full border border-tertiary/20 bg-tertiary-container/50 px-3 py-1.5 text-[0.75rem] font-medium text-on-tertiary-container capitalize">
-              {role}
-            </span>
-          )}
-          <span className="inline-flex items-center rounded-full border border-outline-variant bg-surface-container px-3 py-1.5 text-[0.75rem] font-medium text-on-surface-variant">
-            {user?.email ?? ''}
-          </span>
         </div>
       </section>
 

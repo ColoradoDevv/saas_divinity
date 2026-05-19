@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/jmcol/OneDrive/Desktop/saas_divinity/divinity_backend/**)",
+      "Bash(python manage.py migrate --run-syncdb)",
+      "Bash(ls \"C:\\\\Users\\\\jmcol\\\\OneDrive\\\\Desktop\\\\saas_divinity\" 2>&1 | head -20)",
+      "PowerShell(Get-Command python)",
+      "PowerShell(python -c \"import sys; print\\(sys.executable\\)\")",
+      "PowerShell($env:DJANGO_SECRET_KEY = \"test-secret-key-for-migration\"; $env:DJANGO_SETTINGS_MODULE = \"divinity_backend.settings\"; Set-Location \"C:\\\\Users\\\\jmcol\\\\OneDrive\\\\Desktop\\\\saas_divinity\\\\divinity_backend\"; & \"C:\\\\Users\\\\jmcol\\\\AppData\\\\Local\\\\pypoetry\\\\Cache\\\\virtualenvs\\\\backend-sykYGhep-py3.13\\\\Scripts\\\\python.exe\" manage.py migrate 2>&1)"
+    ]
+  }
+}

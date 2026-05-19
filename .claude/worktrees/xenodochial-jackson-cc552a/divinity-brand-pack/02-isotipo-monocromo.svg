@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Halo / aureola superior -->
+  <ellipse cx="100" cy="62" rx="58" ry="14" fill="none" stroke="#1E40AF" stroke-width="7" stroke-linecap="round"/>
+  
+  <!-- Cuerpo principal: D estilizada -->
+  <path d="M 60 88 
+           L 60 168 
+           L 110 168 
+           Q 152 168 152 128 
+           Q 152 88 110 88 
+           Z" 
+        fill="#1E40AF"/>
+  
+  <!-- Contraforma interior -->
+  <path d="M 82 110 
+           L 82 146 
+           L 108 146 
+           Q 128 146 128 128 
+           Q 128 110 108 110 
+           Z" 
+        fill="#FFFFFF"/>
+  
+  <!-- Nodo central -->
+  <circle cx="100" cy="128" r="6" fill="#1E40AF"/>
+</svg>

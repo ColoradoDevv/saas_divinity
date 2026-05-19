@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Divinity — Brand Identity Guidelines</title>
+<link rel="icon" type="image/svg+xml" href="10-favicon.svg">
+<style>
+  :root {
+    --brand-50:  #EFF6FF;
+    --brand-100: #DBEAFE;
+    --brand-200: #BFDBFE;
+    --brand-300: #93C5FD;
+    --brand-400: #60A5FA;
+    --brand-500: #3B82F6;
+    --brand-600: #2563EB;
+    --brand-700: #1D4ED8;
+    --brand-800: #1E40AF;
+    --brand-900: #1E3A8A;
+    --brand-deep:#0B1F5C;
+    --ink: #0B1426;
+    --ink-soft: #475569;
+    --paper: #FAFBFE;
+    --line: #E5E9F2;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Poppins', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    padding: 0 0 120px;
+  }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(96, 165, 250, 0.18), transparent 60%),
+      linear-gradient(180deg, #0B1F5C 0%, #1E3A8A 60%, #1E40AF 100%);
+    color: white;
+    padding: 80px 40px 100px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 15% 30%, rgba(255,255,255,0.06) 0%, transparent 8%),
+      radial-gradient(circle at 85% 70%, rgba(255,255,255,0.05) 0%, transparent 12%),
+      radial-gradient(circle at 50% 20%, rgba(96,165,250,0.15) 0%, transparent 25%);
+    pointer-events: none;
+  }
+
+  .hero-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-eyebrow {
+    font-size: 12px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--brand-300);
+    font-weight: 500;
+    margin-bottom: 24px;
+  }
+
+  .hero h1 {
+    font-size: clamp(56px, 8vw, 120px);
+    font-weight: 600;
+    letter-spacing: -3px;
+    line-height: 0.95;
+    margin-bottom: 32px;
+  }
+
+  .hero h1 .accent {
+    color: var(--brand-400);
+  }
+
+  .hero-tagline {
+    font-size: 20px;
+    color: rgba(255,255,255,0.78);
+    max-width: 620px;
+    font-weight: 300;
+    margin-bottom: 48px;
+  }
+
+  .hero-logo-display {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 60px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 40px;
+  }
+
+  .hero-logo-display img {
+    max-width: 100%;
+    height: auto;
+    width: 600px;
+  }
+
+  /* ---------- CONTAINER ---------- */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  /* ---------- SECTIONS ---------- */
+  .section {
+    margin-top: 100px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .section-number {
+    font-size: 14px;
+    color: var(--brand-600);
+    font-weight: 500;
+    letter-spacing: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .section-title {
+    font-size: 38px;
+    font-weight: 600;
+    letter-spacing: -1.5px;
+    color: var(--ink);
+  }
+
+  .section-subtitle {
+    font-size: 16px;
+    color: var(--ink-soft);
+    margin-left: auto;
+    max-width: 400px;
+    text-align: right;
+  }
+
+  /* ---------- LOGO GRID ---------- */
+  .logo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+
+  .logo-card {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .logo-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(11, 31, 92, 0.08);
+  }
+
+  .logo-card-canvas {
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: white;
+  }
+
+  .logo-card-canvas.dark {
+    background: var(--brand-deep);
+  }
+
+  .logo-card-canvas.gray {
+    background: #F1F4F9;
+  }
+
+  .logo-card-canvas img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .logo-card-meta {
+    padding: 20px 24px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo-card-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .logo-card-file {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: var(--paper);
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+
+  /* ---------- COLOR PALETTE ---------- */
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .color-chip {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+
+  .color-swatch {
+    height: 140px;
+    position: relative;
+  }
+
+  .color-swatch.has-name {
+    display: flex;
+    align-items: flex-end;
+    padding: 16px;
+  }
+
+  .color-swatch-label {
+    color: white;
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: -0.5px;
+  }
+
+  .color-swatch-label.dark { color: var(--ink); }
+
+  .color-meta {
+    padding: 14px 16px;
+    background: white;
+    font-size: 12px;
+  }
+
+  .color-meta strong {
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--ink);
+  }
+
+  .color-meta div {
+    color: var(--ink-soft);
+    font-family: 'SF Mono', Monaco, monospace;
+    margin-top: 4px;
+    font-size: 11px;
+  }
+
+  /* ---------- TYPOGRAPHY ---------- */
+  .type-block {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 40px;
+    margin-bottom: 24px;
+  }
+
+  .type-display {
+    font-size: 88px;
+    font-weight: 600;
+    letter-spacing: -3px;
+    line-height: 1;
+    color: var(--brand-deep);
+    margin-bottom: 24px;
+  }
+
+  .type-name {
+    font-size: 13px;
+    color: var(--brand-600);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .type-details {
+    font-size: 14px;
+    color: var(--ink-soft);
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  .type-specimen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    margin-top: 32px;
+    padding-top: 32px;
+    border-top: 1px solid var(--line);
+  }
+
+  .type-specimen-item {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .type-specimen-item .weight {
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .type-specimen-item .sample {
+    font-size: 28px;
+    color: var(--ink);
+    letter-spacing: -0.8px;
+  }
+
+  /* ---------- USAGE / APPLICATIONS ---------- */
+  .apps-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .app-mock {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    aspect-ratio: 16/10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* Mock 1: Browser tab favicon */
+  .app-browser {
+    background: linear-gradient(135deg, #E5E9F2 0%, #F1F4F9 100%);
+    flex-direction: column;
+    padding: 30px;
+  }
+
+  .browser-bar {
+    background: white;
+    border-radius: 12px 12px 0 0;
+    width: 100%;
+    max-width: 480px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+
+  .browser-tab {
+    background: var(--paper);
+    border-radius: 8px;
+    padding: 6px 12px 6px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+
+  .browser-tab img { width: 16px; height: 16px; }
+
+  .browser-window {
+    background: white;
+    width: 100%;
+    max-width: 480px;
+    height: 80px;
+    border-radius: 0 0 12px 12px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+
+  .browser-window img {
+    height: 36px;
+  }
+
+  /* Mock 2: Mobile app */
+  .app-mobile {
+    background: linear-gradient(135deg, var(--brand-deep), var(--brand-800));
+  }
+
+  .phone-frame {
+    width: 160px;
+    height: 280px;
+    background: black;
+    border-radius: 28px;
+    padding: 8px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+  }
+
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, var(--brand-deep) 0%, #000 100%);
+    border-radius: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+  }
+
+  .phone-screen img { width: 80px; }
+
+  .phone-loading {
+    width: 60%;
+    height: 2px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 20px;
+  }
+
+  .phone-loading::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: 60%;
+    background: var(--brand-400);
+    animation: load 2s ease-in-out infinite;
+  }
+
+  @keyframes load {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+
+  /* Mock 3: Social media avatar */
+  .app-social {
+    background: linear-gradient(135deg, #F1F4F9, #E5E9F2);
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .social-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: white;
+    padding: 16px 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    width: 80%;
+  }
+
+  .social-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--brand-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .social-avatar img { width: 36px; }
+
+  .social-content {
+    flex: 1;
+  }
+
+  .social-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+  }
+
+  .social-handle {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  /* Mock 4: Watermark on photo */
+  .app-watermark {
+    background: linear-gradient(135deg, #2D3D5C 0%, #4A5B7D 50%, #6B7B9E 100%);
+    position: relative;
+  }
+
+  .app-watermark::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,0.1) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(255,255,255,0.05) 0%, transparent 50%);
+  }
+
+  .watermark-overlay {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    width: 180px;
+    opacity: 0.85;
+  }
+
+  .app-mock-label {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    backdrop-filter: blur(8px);
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+
+  /* ---------- CONCEPT ---------- */
+  .concept {
+    background: linear-gradient(135deg, var(--brand-deep) 0%, var(--brand-900) 100%);
+    color: white;
+    border-radius: 24px;
+    padding: 60px;
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 60px;
+    align-items: center;
+    margin-top: 60px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .concept::before {
+    content: "";
+    position: absolute;
+    top: -100px;
+    right: -100px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(96,165,250,0.2) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .concept-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .concept-visual img {
+    width: 280px;
+    filter: drop-shadow(0 20px 40px rgba(0,0,0,0.3));
+  }
+
+  .concept-text h3 {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -1px;
+    margin-bottom: 20px;
+    line-height: 1.2;
+  }
+
+  .concept-text p {
+    font-size: 16px;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+
+  /* ---------- RULES ---------- */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .rule {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .rule.do { border-color: #BBF7D0; }
+  .rule.dont { border-color: #FECACA; }
+
+  .rule-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .rule.do .rule-header { color: #16A34A; }
+  .rule.dont .rule-header { color: #DC2626; }
+
+  .rule-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .rule.do .rule-icon { background: #16A34A; }
+  .rule.dont .rule-icon { background: #DC2626; }
+
+  .rule-preview {
+    height: 120px;
+    background: var(--paper);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .rule-preview img {
+    max-height: 100%;
+    max-width: 100%;
+  }
+
+  .rule-preview.bad-stretched img { transform: scaleX(1.6); }
+  .rule-preview.bad-rotated img { transform: rotate(15deg); }
+  .rule-preview.bad-colored {
+    background: linear-gradient(135deg, #FB7185, #F472B6);
+  }
+  .rule-preview.bad-busy {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3Cpattern id='p' width='20' height='20' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 0L20 20M20 0L0 20' stroke='%23999' stroke-width='1' fill='none'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23p)'/%3E%3C/svg%3E");
+  }
+
+  .rule-text {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+
+  /* ---------- FILE INDEX ---------- */
+  .file-index {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 40px;
+  }
+
+  .file-index table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .file-index th, .file-index td {
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+
+  .file-index th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ink-soft);
+    font-weight: 500;
+    background: var(--paper);
+  }
+
+  .file-index td:first-child {
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 12px;
+    color: var(--brand-700);
+    font-weight: 500;
+  }
+
+  .file-index tr:last-child td { border-bottom: none; }
+
+  /* ---------- FOOTER ---------- */
+  .footer {
+    margin-top: 120px;
+    padding: 60px 40px;
+    background: var(--brand-deep);
+    color: rgba(255,255,255,0.6);
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+
+  .footer img { width: 100px; margin-bottom: 24px; }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 760px) {
+    .hero { padding: 60px 24px 80px; }
+    .hero h1 { font-size: 60px; letter-spacing: -2px; }
+    .container { padding: 0 24px; }
+    .section { margin-top: 60px; }
+    .section-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .section-subtitle { text-align: left; margin-left: 0; }
+    .section-title { font-size: 28px; }
+    .apps-grid { grid-template-columns: 1fr; }
+    .concept { grid-template-columns: 1fr; padding: 40px 28px; gap: 32px; }
+    .rules-grid { grid-template-columns: 1fr; }
+    .type-display { font-size: 56px; letter-spacing: -2px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============= HERO ============= -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Brand Identity Guidelines · 2026</div>
+    <h1>Divinity<span class="accent">.</span></h1>
+    <p class="hero-tagline">Sistema de identidad visual para la suite SaaS que ofrece soluciones rápidas, accesibles y confiables a pequeños negocios.</p>
+    <div class="hero-logo-display">
+      <img src="08-imagotipo-horizontal-blanco.svg" alt="Divinity imagotipo en blanco">
+    </div>
+  </div>
+</header>
+
+<!-- ============= CONCEPTO ============= -->
+<div class="container">
+  <section class="section" style="margin-top: 60px;">
+    <div class="concept">
+      <div class="concept-visual">
+        <img src="01-isotipo-color.svg" alt="Isotipo Divinity">
+      </div>
+      <div class="concept-text">
+        <h3>El concepto: lo divino se encuentra con lo administrativo.</h3>
+        <p>El isotipo combina dos mundos. La <strong style="color:#fff">letra D</strong> robusta y geométrica representa estructura, datos y la solidez corporativa de un CRM serio. El <strong style="color:#fff">halo flotante</strong> evoca lo celestial, la trascendencia y aquello que está "por encima" de lo ordinario.</p>
+        <p>El punto central dentro de la D no es un mero detalle decorativo: es un <strong style="color:#fff">nodo</strong>, una conexión, el corazón de un sistema. Recuerda que detrás de cada interacción hay datos, hardware y personas conectadas.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= LOGO VARIANTS ============= -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-number">01</div>
+      <h2 class="section-title">Variantes principales</h2>
+      <p class="section-subtitle">Cada formato tiene un propósito específico. Elige el adecuado según el contexto.</p>
+    </div>
+
+    <div class="logo-grid">
+      <div class="logo-card">
+        <div class="logo-card-canvas"><img src="01-isotipo-color.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Isotipo · Color</span>
+          <span class="logo-card-file">01-isotipo-color.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas"><img src="06-imagotipo-horizontal.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Imagotipo horizontal</span>
+          <span class="logo-card-file">06-imagotipo-horizontal.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas"><img src="07-imagotipo-vertical.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Imagotipo vertical</span>
+          <span class="logo-card-file">07-imagotipo-vertical.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas"><img src="05-logotipo-color.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Logotipo · 3 halos</span>
+          <span class="logo-card-file">05-logotipo-color.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas"><img src="05b-logotipo-color-halo-medio.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Logotipo · halo medio</span>
+          <span class="logo-card-file">05b-logotipo-color-halo-medio.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas"><img src="10-favicon.svg" alt="" style="max-width:120px;"></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Favicon</span>
+          <span class="logo-card-file">10-favicon.svg</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= VARIANTES BN ============= -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-number">02</div>
+      <h2 class="section-title">Variantes monocromáticas</h2>
+      <p class="section-subtitle">Para contextos donde la versión a color no es viable: fondos oscuros, marcas de agua, impresión a una tinta.</p>
+    </div>
+
+    <div class="logo-grid">
+      <div class="logo-card">
+        <div class="logo-card-canvas dark"><img src="08-imagotipo-horizontal-blanco.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Blanco · fondo oscuro</span>
+          <span class="logo-card-file">08-imagotipo-horizontal-blanco.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas"><img src="09-imagotipo-horizontal-negro.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Negro · fondo claro</span>
+          <span class="logo-card-file">09-imagotipo-horizontal-negro.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas dark"><img src="04-isotipo-blanco.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Isotipo blanco</span>
+          <span class="logo-card-file">04-isotipo-blanco.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas"><img src="03-isotipo-negro.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Isotipo negro</span>
+          <span class="logo-card-file">03-isotipo-negro.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas gray"><img src="11-marca-de-agua.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Marca de agua</span>
+          <span class="logo-card-file">11-marca-de-agua.svg</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-card-canvas"><img src="02-isotipo-monocromo.svg" alt=""></div>
+        <div class="logo-card-meta">
+          <span class="logo-card-name">Isotipo monocromo</span>
+          <span class="logo-card-file">02-isotipo-monocromo.svg</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= COLORS ============= -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-number">03</div>
+      <h2 class="section-title">Paleta cromática</h2>
+      <p class="section-subtitle">Azul corporativo con un degradado celestial. El degradado es la firma visual, no se usa en exceso.</p>
+    </div>
+
+    <div class="color-grid">
+      <div class="color-chip">
+        <div class="color-swatch has-name" style="background: #0B1F5C;"><span class="color-swatch-label">Divinity Deep</span></div>
+        <div class="color-meta"><strong>Primary Dark</strong><div>#0B1F5C · RGB(11,31,92)</div></div>
+      </div>
+      <div class="color-chip">
+        <div class="color-swatch has-name" style="background: #1E40AF;"><span class="color-swatch-label">Divinity Blue</span></div>
+        <div class="color-meta"><strong>Primary</strong><div>#1E40AF · RGB(30,64,175)</div></div>
+      </div>
+      <div class="color-chip">
+        <div class="color-swatch has-name" style="background: #3B82F6;"><span class="color-swatch-label">Divinity Bright</span></div>
+        <div class="color-meta"><strong>Accent</strong><div>#3B82F6 · RGB(59,130,246)</div></div>
+      </div>
+      <div class="color-chip">
+        <div class="color-swatch has-name" style="background: #60A5FA;"><span class="color-swatch-label">Halo Blue</span></div>
+        <div class="color-meta"><strong>Light Accent</strong><div>#60A5FA · RGB(96,165,250)</div></div>
+      </div>
+      <div class="color-chip">
+        <div class="color-swatch has-name" style="background: #FAFBFE;"><span class="color-swatch-label dark">Cloud</span></div>
+        <div class="color-meta"><strong>Background</strong><div>#FAFBFE · Off-white</div></div>
+      </div>
+      <div class="color-chip">
+        <div class="color-swatch has-name" style="background: #0B1426;"><span class="color-swatch-label">Ink</span></div>
+        <div class="color-meta"><strong>Text Primary</strong><div>#0B1426 · Near-black</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= TYPOGRAPHY ============= -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-number">04</div>
+      <h2 class="section-title">Tipografía</h2>
+      <p class="section-subtitle">Geométrica, moderna, accesible. Habla con autoridad sin perder cercanía.</p>
+    </div>
+
+    <div class="type-block">
+      <div class="type-name">Display & UI</div>
+      <div class="type-display">Aa Bb Cc</div>
+      <div class="type-details">Poppins · Google Fonts · 100–900 · Sistema completo</div>
+
+      <div class="type-specimen">
+        <div class="type-specimen-item">
+          <div class="weight">Light · 300</div>
+          <div class="sample" style="font-weight:300;">divinity crm</div>
+        </div>
+        <div class="type-specimen-item">
+          <div class="weight">Regular · 400</div>
+          <div class="sample" style="font-weight:400;">divinity crm</div>
+        </div>
+        <div class="type-specimen-item">
+          <div class="weight">Medium · 500 ⭐</div>
+          <div class="sample" style="font-weight:500;">divinity crm</div>
+        </div>
+        <div class="type-specimen-item">
+          <div class="weight">SemiBold · 600 ⭐</div>
+          <div class="sample" style="font-weight:600;">divinity crm</div>
+        </div>
+        <div class="type-specimen-item">
+          <div class="weight">Bold · 700</div>
+          <div class="sample" style="font-weight:700;">divinity crm</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= APPLICATIONS ============= -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-number">05</div>
+      <h2 class="section-title">Aplicaciones</h2>
+      <p class="section-subtitle">Cómo se ve la marca en los contextos donde realmente vive.</p>
+    </div>
+
+    <div class="apps-grid">
+      <!-- Browser tab -->
+      <div class="app-mock app-browser">
+        <div class="app-mock-label">Web · Favicon</div>
+        <div class="browser-bar">
+          <div class="browser-tab">
+            <img src="10-favicon.svg" alt="">
+            <span>Divinity CRM</span>
+          </div>
+        </div>
+        <div class="browser-window">
+          <img src="06-imagotipo-horizontal.svg" alt="">
+        </div>
+      </div>
+
+      <!-- Mobile -->
+      <div class="app-mock app-mobile">
+        <div class="app-mock-label" style="background:rgba(255,255,255,0.15);">Mobile app · Splash</div>
+        <div class="phone-frame">
+          <div class="phone-screen">
+            <img src="04-isotipo-blanco.svg" alt="">
+            <div class="phone-loading"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Social -->
+      <div class="app-mock app-social">
+        <div class="app-mock-label">Redes sociales</div>
+        <div class="social-row">
+          <div class="social-avatar"><img src="04-isotipo-blanco.svg" alt=""></div>
+          <div class="social-content">
+            <div class="social-name">Divinity</div>
+            <div class="social-handle">@divinityCRM · 12.4k followers</div>
+          </div>
+        </div>
+        <div class="social-row">
+          <div class="social-avatar"><img src="04-isotipo-blanco.svg" alt=""></div>
+          <div class="social-content">
+            <div class="social-name">Divinity Updates</div>
+            <div class="social-handle">v2.4 disponible · Nueva integración POS</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Watermark -->
+      <div class="app-mock app-watermark">
+        <div class="app-mock-label" style="background:rgba(255,255,255,0.15);">Marca de agua</div>
+        <img src="08-imagotipo-horizontal-blanco.svg" alt="" class="watermark-overlay">
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= DO / DONT ============= -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-number">06</div>
+      <h2 class="section-title">Sí y no</h2>
+      <p class="section-subtitle">Reglas para preservar la integridad visual de la marca.</p>
+    </div>
+
+    <div class="rules-grid">
+      <div class="rule do">
+        <div class="rule-header"><div class="rule-icon">✓</div>Respetar las proporciones</div>
+        <div class="rule-preview"><img src="06-imagotipo-horizontal.svg" alt=""></div>
+        <div class="rule-text">Usa siempre los archivos SVG provistos. El SVG escala sin pérdida a cualquier tamaño y mantiene las proporciones automáticamente.</div>
+      </div>
+
+      <div class="rule dont">
+        <div class="rule-header"><div class="rule-icon">✕</div>No estires ni deformes</div>
+        <div class="rule-preview bad-stretched"><img src="06-imagotipo-horizontal.svg" alt=""></div>
+        <div class="rule-text">Nunca distorsiones el logo horizontal o verticalmente. Modifica solo el tamaño manteniendo la proporción.</div>
+      </div>
+
+      <div class="rule do">
+        <div class="rule-header"><div class="rule-icon">✓</div>Usar la versión adecuada</div>
+        <div class="rule-preview" style="background: var(--brand-deep);"><img src="08-imagotipo-horizontal-blanco.svg" alt=""></div>
+        <div class="rule-text">Sobre fondos oscuros, usa la versión blanca. Sobre fondos claros, la versión a color o negra. Garantiza siempre contraste óptimo.</div>
+      </div>
+
+      <div class="rule dont">
+        <div class="rule-header"><div class="rule-icon">✕</div>No cambies los colores</div>
+        <div class="rule-preview bad-colored"><img src="04-isotipo-blanco.svg" alt=""></div>
+        <div class="rule-text">No alteres la paleta. Si necesitas un color que no está en las variantes, contáctanos para ampliar el sistema oficialmente.</div>
+      </div>
+
+      <div class="rule do">
+        <div class="rule-header"><div class="rule-icon">✓</div>Respetar el área de seguridad</div>
+        <div class="rule-preview" style="padding:32px;"><img src="01-isotipo-color.svg" alt=""></div>
+        <div class="rule-text">Deja un espacio libre alrededor del logo equivalente a la altura del halo. Nada debe invadir esa zona.</div>
+      </div>
+
+      <div class="rule dont">
+        <div class="rule-header"><div class="rule-icon">✕</div>No lo coloques sobre fondos ocupados</div>
+        <div class="rule-preview bad-busy"><img src="01-isotipo-color.svg" alt=""></div>
+        <div class="rule-text">Si necesitas usarlo sobre una imagen o textura compleja, aplica una capa de color sólido detrás o usa la versión monocromática.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= FILE INDEX ============= -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-number">07</div>
+      <h2 class="section-title">Archivos del pack</h2>
+      <p class="section-subtitle">Todos los SVG son vectoriales: escalan sin pérdida a cualquier tamaño.</p>
+    </div>
+
+    <div class="file-index">
+      <table>
+        <thead>
+          <tr><th>Archivo</th><th>Tipo</th><th>Uso recomendado</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>01-isotipo-color.svg</td><td>Isotipo</td><td>Símbolo principal a color, redes, app icon</td></tr>
+          <tr><td>02-isotipo-monocromo.svg</td><td>Isotipo</td><td>Una sola tinta azul corporativo</td></tr>
+          <tr><td>03-isotipo-negro.svg</td><td>Isotipo</td><td>Impresión B/N, sellos, documentos legales</td></tr>
+          <tr><td>04-isotipo-blanco.svg</td><td>Isotipo</td><td>Sobre fondos oscuros, avatares en negativo</td></tr>
+          <tr><td>05-logotipo-color.svg</td><td>Logotipo</td><td>Solo texto, con tres halos (principal)</td></tr>
+          <tr><td>05b-logotipo-color-halo-medio.svg</td><td>Logotipo</td><td>Variante minimalista, un solo halo</td></tr>
+          <tr><td>06-imagotipo-horizontal.svg</td><td>Imagotipo</td><td>Headers de web, firmas de correo, signage</td></tr>
+          <tr><td>07-imagotipo-vertical.svg</td><td>Imagotipo</td><td>Stories de Instagram, posters, formatos verticales</td></tr>
+          <tr><td>08-imagotipo-horizontal-blanco.svg</td><td>Imagotipo</td><td>Fondos oscuros, dark mode, video</td></tr>
+          <tr><td>09-imagotipo-horizontal-negro.svg</td><td>Imagotipo</td><td>Una sola tinta, B/N</td></tr>
+          <tr><td>10-favicon.svg</td><td>Favicon</td><td>Pestañas de navegador, app icons pequeños</td></tr>
+          <tr><td>11-marca-de-agua.svg</td><td>Marca de agua</td><td>Documentos, exports, capturas</td></tr>
+          <tr><td>12-logotipo-blanco.svg</td><td>Logotipo</td><td>Solo texto en blanco, fondos oscuros</td></tr>
+          <tr><td>13-logotipo-negro.svg</td><td>Logotipo</td><td>Solo texto en negro, una tinta</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<footer class="footer">
+  <img src="04-isotipo-blanco.svg" alt="Divinity">
+  <div>Divinity Brand Identity · v1.0 · 2026</div>
+  <div style="margin-top: 8px; opacity: 0.5;">Diseñado para reflejar accesibilidad, confiabilidad y excelencia.</div>
+</footer>
+
+</body>
+</html>
