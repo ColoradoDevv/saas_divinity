@@ -40,3 +40,8 @@ build/
 # pycache
 __pycache__/
 *.pyc
+
+# Environment
+.env
+.env.local
+*.env

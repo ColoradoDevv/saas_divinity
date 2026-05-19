@@ -26,6 +26,17 @@ class DjangoORMOrganizationRepository(OrganizationRepositoryInterface):
             role=model.role,
         )
 
+    def get_membership_for_org(self, user_id: int, organization_id: int) -> Optional[Membership]:
+        try:
+            model = (
+                MembershipModel.objects
+                .select_related('organization')
+                .get(user_id=user_id, organization_id=organization_id, is_active=True)
+            )
+            return self._to_membership_entity(model)
+        except MembershipModel.DoesNotExist:
+            return None
+
     def get_primary_membership(self, user_id: int) -> Optional[Membership]:
         try:
             model = (

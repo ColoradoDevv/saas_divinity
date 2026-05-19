@@ -64,3 +64,7 @@ class MeResponseSerializer(serializers.Serializer):
 
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(trim_whitespace=True)
+
+
+class SwitchOrgSerializer(serializers.Serializer):
+    organization_id = serializers.IntegerField(min_value=1)

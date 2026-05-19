@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest apps/ infrastructure/ --no-cov -x -q)",
+      "Bash(.venv/Scripts/pip install *)",
+      "Bash(.venv/Scripts/python -m pytest apps/ infrastructure/ --no-cov -x -q)",
+      "Bash(.venv/Scripts/python -m pytest apps/ infrastructure/ --no-cov -q)",
+      "Bash(npx vitest *)"
+    ]
+  }
+}

@@ -26,6 +26,8 @@ from .serializers import (
     ForgotPasswordSerializer,
     LoginSerializer,
     MeResponseSerializer,
+    SwitchOrgSerializer,
+    TokenPairSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,6 +121,50 @@ class MeView(APIView):
         }
         output = MeResponseSerializer(data).data
         return Response(output, status=status.HTTP_200_OK)
+
+
+class SwitchOrgView(APIView):
+    """
+    POST /api/auth/switch-org/
+    Body: {"organization_id": <int>}
+
+    Verifica que el usuario tiene membership activa en la org solicitada y
+    emite un nuevo token pair con el organization_id actualizado.
+    El cliente debe reemplazar ambos tokens (access + refresh).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = SwitchOrgSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        org_id = serializer.validated_data['organization_id']
+
+        org_repo = DjangoORMOrganizationRepository()
+        membership = org_repo.get_membership_for_org(request.user.id, org_id)
+
+        if membership is None:
+            raise PermissionDenied(
+                detail='No tienes membresía activa en esta organización.'
+            )
+
+        if not membership.organization.is_active:
+            raise PermissionDenied(
+                detail='La organización está inactiva.'
+            )
+
+        if membership.organization.payment_status == 'overdue':
+            return Response(
+                {'detail': 'La organización tiene un pago vencido. Actualiza el método de pago.'},
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+
+        user = _build_auth_service().get_authenticated_user(request.user.id)
+        tokens = SimpleJWTTokenProvider().create_token_pair(user, membership)
+
+        return Response(
+            TokenPairSerializer(tokens.to_primitives()).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class ForgotPasswordView(APIView):

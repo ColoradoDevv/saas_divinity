@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-6&2u$7x%!2c+x-g+c^tgah7)f_)q#9$_k+r8b99s7^l#m)ot(c'
-DEBUG = True
+SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
@@ -16,11 +17,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'apps.authentication',
     'apps.organizations',
     'apps.clients',
     'apps.workers',
     'apps.audit',
+    'apps.members',
 ]
 
 MIDDLEWARE = [
@@ -32,6 +35,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'infrastructure.middleware.tenant.TenantMiddleware',
 ]
 
 ROOT_URLCONF = 'divinity_backend.urls'
@@ -53,12 +57,34 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'divinity_backend.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+_database_url = os.environ.get('DATABASE_URL', '')
+
+if _database_url.startswith('postgres'):
+    import re
+    _m = re.match(
+        r'postgres(?:ql)?://(?P<user>[^:]+):(?P<password>[^@]+)@(?P<host>[^:/]+)(?::(?P<port>\d+))?/(?P<name>.+)',
+        _database_url,
+    )
+    if not _m:
+        raise ValueError(f'DATABASE_URL tiene formato inválido: {_database_url!r}')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': _m.group('name'),
+            'USER': _m.group('user'),
+            'PASSWORD': _m.group('password'),
+            'HOST': _m.group('host'),
+            'PORT': _m.group('port') or '5432',
+        }
     }
-}
+else:
+    # Fallback SQLite — solo para desarrollo local sin DATABASE_URL configurada
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -110,7 +136,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': False,
+    'BLACKLIST_AFTER_ROTATION': True,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
     'AUTH_HEADER_TYPES': ('Bearer',),
