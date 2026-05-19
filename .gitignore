@@ -1,6 +1,19 @@
 # Added by code-review-graph
 .code-review-graph/
 
+# Claude Code worktrees (generated, not source)
+.claude/worktrees/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.coverage
+.pytest_cache/
+
+# Django / SQLite
+db.sqlite3
+
 # Environment
 .env
 .env.local
