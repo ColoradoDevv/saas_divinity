@@ -790,9 +790,9 @@ const TaskFormModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-md shadow-2xl`}>
+      <div className={`${md3SurfaceClass} w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl`}>
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-outline-variant/40 px-6 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-outline-variant/40 bg-inherit px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary-container">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-on-secondary-container">
@@ -838,7 +838,7 @@ const TaskFormModal = ({
           <div>
             <label className={md3InputLabelClass}>Detalles adicionales</label>
             <textarea
-              rows={3}
+              rows={2}
               placeholder="Instrucciones, contexto o notas relevantes..."
               className={`${md3TextFieldClass} h-auto py-3 resize-none`}
               value={form.description}
@@ -904,7 +904,7 @@ const TaskFormModal = ({
             {/* Prioridad */}
             <div>
               <label className={md3InputLabelClass}>Prioridad</label>
-              <div className="mt-1 space-y-1.5">
+              <div className="mt-1 flex gap-2">
                 {(['low', 'medium', 'high'] as const).map((p) => {
                   const meta = PRIORITY_META[p];
                   const selected = form.priority === p;
@@ -913,19 +913,14 @@ const TaskFormModal = ({
                       key={p}
                       type="button"
                       onClick={() => setForm((prev) => ({ ...prev, priority: p }))}
-                      className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors ${
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-semibold transition-colors ${
                         selected
-                          ? 'border-primary bg-primary-container/30'
-                          : 'border-outline-variant hover:bg-on-surface/4'
+                          ? 'border-primary bg-primary-container/40 text-on-surface'
+                          : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/4'
                       }`}
                     >
-                      <div className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${meta.dot}`} />
-                      <div>
-                        <p className={`text-xs font-semibold leading-tight ${selected ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-                          {meta.label}
-                        </p>
-                        <p className="text-[10px] text-on-surface-variant leading-tight">{meta.description}</p>
-                      </div>
+                      <div className={`h-2 w-2 flex-shrink-0 rounded-full ${meta.dot}`} />
+                      {meta.label}
                     </button>
                   );
                 })}
