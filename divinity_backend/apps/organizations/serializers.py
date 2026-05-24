@@ -55,6 +55,25 @@ class PaymentUpdateSerializer(serializers.Serializer):
     next_payment_date = serializers.DateField(required=False, allow_null=True)
 
 
+class SuperUpdateOrganizationSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=120, required=False)
+    plan = serializers.ChoiceField(choices=['pro', 'enterprise'], required=False)
+    enabled_modules = serializers.ListField(
+        child=serializers.ChoiceField(
+            choices=['clients', 'payments', 'attendance', 'reports', 'workers', 'members']
+        ),
+        required=False,
+    )
+    is_active = serializers.BooleanField(required=False)
+    primary_color = serializers.CharField(max_length=7, required=False, allow_blank=True)
+    logo_url = serializers.CharField(required=False, allow_blank=True)
+
+
+class MemberRoleUpdateSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=['admin', 'manager', 'staff'], required=False)
+    is_active = serializers.BooleanField(required=False)
+
+
 class MembershipSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(read_only=True)
     email = serializers.EmailField(read_only=True)

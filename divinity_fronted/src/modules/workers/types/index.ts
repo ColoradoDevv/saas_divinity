@@ -41,6 +41,7 @@ export interface CreateWorkerPayload {
   email?: string;
   phone: string;
   position: string;
+  allowed_modules?: string[];
   create_account?: boolean;
   credential_type?: 'gmail' | 'auto';
   password_type?: 'manual' | 'auto';

@@ -8,6 +8,8 @@ from .views import (
     OrganizationDetailView,
     OrganizationLogoUploadView,
     RegisterOrganizationView,
+    SuperMemberUpdateView,
+    SuperOrganizationDetailView,
     SuperOrganizationListCreateView,
     SuperPaymentUpdateView,
 )
@@ -22,7 +24,9 @@ urlpatterns = [
 
     # Super admin (solo superusuario)
     path('super/', SuperOrganizationListCreateView.as_view(), name='super-org-list-create'),
+    path('super/<int:pk>/', SuperOrganizationDetailView.as_view(), name='super-org-detail'),
     path('super/<int:pk>/payment/', SuperPaymentUpdateView.as_view(), name='super-org-payment'),
+    path('super/<int:pk>/members/<int:user_id>/', SuperMemberUpdateView.as_view(), name='super-org-member-update'),
 
     # Organización propia
     path('me/', OrganizationDetailView.as_view(), name='org-detail'),

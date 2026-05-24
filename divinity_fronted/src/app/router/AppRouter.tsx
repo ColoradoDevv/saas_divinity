@@ -88,6 +88,25 @@ export const AppRouter = () => {
     applyOrgColor(organization?.primary_color);
   }, [organization?.primary_color]);
 
+  // Favicon y título dinámicos: usa el logo y nombre de la org cuando están disponibles
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) return;
+    if (organization?.logo_url) {
+      link.href = organization.logo_url;
+      link.type = 'image/png';
+    } else {
+      link.href = '/favicon.svg';
+      link.type = 'image/svg+xml';
+    }
+  }, [organization?.logo_url]);
+
+  useEffect(() => {
+    document.title = organization?.name
+      ? `${organization.name} — Divinity`
+      : 'Divinity Business Suite';
+  }, [organization?.name]);
+
   return (
     <BrowserRouter>
       <Routes>

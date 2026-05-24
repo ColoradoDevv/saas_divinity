@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import secrets
 
 from domain.members.entities import CustomField, FieldConfig, Member
 from domain.members.exceptions import (
@@ -60,6 +61,9 @@ class CreateMemberService:
                 f'Campos personalizados requeridos faltantes: {", ".join(sorted(missing_custom))}'
             )
 
+        photo_url = dto.standard_fields.get('photo', '')
+        member_code = secrets.token_hex(5).upper() if photo_url else ''
+
         member = Member(
             id=None,
             organization_id=dto.organization_id,
@@ -73,6 +77,8 @@ class CreateMemberService:
             created_by_id=dto.created_by_id,
             standard_fields=dto.standard_fields,
             custom_fields=dto.custom_fields,
+            photo_url=photo_url,
+            member_code=member_code,
         )
         return self.repository.save(member)
 
@@ -95,14 +101,20 @@ class UpdateMemberService:
                     'Ya existe un miembro con este correo en la organización.'
                 )
 
+        new_standard = dto.standard_fields if dto.standard_fields is not None else member.standard_fields
+        new_photo_url = new_standard.get('photo', member.photo_url)
+        member_code = member.member_code or (secrets.token_hex(5).upper() if new_photo_url else '')
+
         updated = dataclasses.replace(
             member,
             first_name=(dto.first_name.strip() if dto.first_name is not None else member.first_name),
             last_name=(dto.last_name.strip() if dto.last_name is not None else member.last_name),
             email=(dto.email.lower().strip() if dto.email is not None else member.email),
             phone=(dto.phone.strip() if dto.phone is not None else member.phone),
-            standard_fields=(dto.standard_fields if dto.standard_fields is not None else member.standard_fields),
+            standard_fields=new_standard,
             custom_fields=(dto.custom_fields if dto.custom_fields is not None else member.custom_fields),
+            photo_url=new_photo_url,
+            member_code=member_code,
         )
         return self.repository.save(updated)
 

@@ -21,6 +21,8 @@ class MemberReadSerializer(serializers.Serializer):
     created_by_id = serializers.IntegerField(read_only=True, allow_null=True)
     standard_fields = serializers.DictField(read_only=True)
     custom_fields = serializers.DictField(read_only=True)
+    photo_url = serializers.CharField(read_only=True)
+    member_code = serializers.CharField(read_only=True)
 
 
 class MemberWriteSerializer(serializers.Serializer):

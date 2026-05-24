@@ -12,7 +12,6 @@ import {
 } from '../hooks/useWorkers';
 import type {
   CreateTaskPayload,
-  CreateWorkerPayload,
   GeneratedCredentials,
   Task,
   UpdateWorkerPayload,
@@ -22,7 +21,6 @@ import { useOrgStore } from '@/app/store/org';
 import {
   md3BodyMediumClass,
   md3CardClass,
-  md3DestructiveButtonClass,
   md3FilledButtonClass,
   md3HeadlineMediumClass,
   md3InputLabelClass,
@@ -55,7 +53,7 @@ const getInitials = (name: string) =>
 // ─── Module labels ────────────────────────────────────────────────────────────
 
 const MODULE_LABELS: Record<string, string> = {
-  clients: 'Clientes',
+  clients: 'Miembros',
   workers: 'Trabajadores',
   payments: 'Pagos',
   attendance: 'Asistencia',
@@ -80,7 +78,8 @@ const WorkerEditModal = ({
     email: worker.email,
     phone: worker.phone,
     position: worker.position,
-    allowed_modules: worker.allowed_modules.length > 0 ? worker.allowed_modules : [...orgModules],
+    allowed_modules: (worker.allowed_modules.length > 0 ? worker.allowed_modules : [...orgModules])
+      .filter((m) => m !== 'workers'),
   });
 
   const toggleModule = (key: string) => {
@@ -156,7 +155,7 @@ const WorkerEditModal = ({
                   Selecciona a qué secciones del sistema tendrá acceso este trabajador.
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {orgModules.map((key) => {
+                  {orgModules.filter((m) => m !== 'workers').map((key) => {
                     const active = (form.allowed_modules ?? []).includes(key);
                     return (
                       <button
@@ -320,24 +319,37 @@ const CredentialsModal = ({
 // ─── Worker Form ──────────────────────────────────────────────────────────────
 
 const WorkerForm = ({
+  orgModules,
   onCredentials,
   onClose,
 }: {
+  orgModules: string[];
   onCredentials: (creds: GeneratedCredentials, workerName: string) => void;
   onClose: () => void;
 }) => {
   const createWorker = useCreateWorker();
+  const selectableModules = orgModules.filter((m) => m !== 'workers');
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
     email: '',
     phone: '',
     position: '',
+    allowed_modules: [...selectableModules],
     create_account: false,
     credential_type: 'gmail' as 'gmail' | 'auto',
     password_type: 'manual' as 'manual' | 'auto',
     password: '',
   });
+
+  const toggleModule = (key: string) => {
+    setForm((prev) => ({
+      ...prev,
+      allowed_modules: prev.allowed_modules.includes(key)
+        ? prev.allowed_modules.filter((m) => m !== key)
+        : [...prev.allowed_modules, key],
+    }));
+  };
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
@@ -504,6 +516,46 @@ const WorkerForm = ({
           </div>
         )}
       </div>
+
+      {/* Módulos */}
+      {selectableModules.length > 0 && (
+        <div>
+          <p className={`mb-2 ${md3InputLabelClass}`}>Módulos que puede ver</p>
+          <p className={`mb-3 text-on-surface-variant ${md3BodyMediumClass}`}>
+            Selecciona a qué secciones del sistema tendrá acceso este trabajador.
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {selectableModules.map((key) => {
+              const active = form.allowed_modules.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleModule(key)}
+                  className={`flex items-center gap-2 rounded-[12px] border p-3 text-left transition ${
+                    active
+                      ? 'border-primary bg-primary-container/30'
+                      : 'border-outline-variant hover:bg-on-surface/4'
+                  }`}
+                >
+                  <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition ${
+                    active ? 'border-primary bg-primary' : 'border-outline-variant'
+                  }`}>
+                    {active && (
+                      <svg viewBox="0 0 16 16" fill="white" className="h-full w-full p-0.5">
+                        <path fillRule="evenodd" d="M13.566 3.734a.8.8 0 010 1.132l-6.4 6.4a.8.8 0 01-1.132 0l-3.2-3.2a.8.8 0 111.132-1.132L6.6 9.568l5.834-5.834a.8.8 0 011.132 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className={`text-sm font-medium ${active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                    {MODULE_LABELS[key] ?? key}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <button type="submit" className={md3FilledButtonClass} disabled={createWorker.isPending}>
@@ -735,6 +787,7 @@ export const WorkersPage = () => {
         <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
           <h2 className={`mb-4 ${md3TitleMediumClass}`}>Nuevo trabajador</h2>
           <WorkerForm
+            orgModules={orgModules}
             onCredentials={handleWorkerCredentials}
             onClose={() => setShowWorkerForm(false)}
           />

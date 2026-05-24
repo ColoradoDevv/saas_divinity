@@ -42,6 +42,9 @@ class MemberModel(models.Model):
         related_name='created_members',
     )
 
+    photo_url = models.TextField(blank=True, default='')
+    member_code = models.CharField(max_length=12, blank=True, default='')
+
     class Meta:
         db_table = 'member'
         unique_together = [['organization', 'email']]

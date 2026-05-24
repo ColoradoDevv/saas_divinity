@@ -18,6 +18,8 @@ class Member:
     created_by_id: int | None
     standard_fields: dict = field(default_factory=dict)
     custom_fields: dict = field(default_factory=dict)
+    photo_url: str = ''
+    member_code: str = ''
 
     def to_primitives(self) -> dict:
         return {
@@ -34,6 +36,8 @@ class Member:
             'created_by_id': self.created_by_id,
             'standard_fields': self.standard_fields,
             'custom_fields': self.custom_fields,
+            'photo_url': self.photo_url,
+            'member_code': self.member_code,
         }
 
 

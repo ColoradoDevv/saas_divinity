@@ -93,12 +93,12 @@ const NavIcons = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ALL_NAV = [
-  { to: '/dashboard',  label: 'Panel',          module: null },
-  { to: '/members',    label: 'Miembros',       module: 'members' },
-  { to: '/workers',    label: 'Trabajadores',   module: 'workers' },
-  { to: '/payments',   label: 'Pagos',          module: 'payments' },
-  { to: '/attendance', label: 'Asistencia',     module: 'attendance' },
-  { to: '/reports',    label: 'Reportes',       module: 'reports' },
+  { to: '/dashboard',  label: 'Panel',          module: null,       adminOnly: false },
+  { to: '/members',    label: 'Miembros',       module: 'clients',  adminOnly: false },
+  { to: '/workers',    label: 'Trabajadores',   module: 'workers',  adminOnly: true  },
+  { to: '/payments',   label: 'Pagos',          module: 'payments', adminOnly: false },
+  { to: '/attendance', label: 'Asistencia',     module: 'attendance', adminOnly: false },
+  { to: '/reports',    label: 'Reportes',       module: 'reports',  adminOnly: false },
 ];
 
 const getInitials = (firstName?: string, lastName?: string, username?: string) => {
@@ -134,7 +134,9 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const activeModules = allowedModules !== null ? allowedModules : enabledModules;
   const filterModules = organization !== null && activeModules.length > 0;
   const navigation = ALL_NAV.filter(
-    (item) => item.module === null || !filterModules || activeModules.includes(item.module),
+    (item) =>
+      (!item.adminOnly || role !== 'staff') &&
+      (item.module === null || !filterModules || activeModules.includes(item.module)),
   );
 
   const handleLogout = () => {
@@ -261,8 +263,8 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         })}
       </nav>
 
-      {/* Settings — solo admin */}
-      {role === 'admin' && (
+      {/* Settings — solo admin con módulo de miembros habilitado */}
+      {role === 'admin' && enabledModules.includes('clients') && (
         <>
           <div className="mx-4 my-3 h-px bg-outline-variant/60" />
           <p className="mx-5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant/70">
