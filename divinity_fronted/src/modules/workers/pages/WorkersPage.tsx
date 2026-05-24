@@ -755,9 +755,15 @@ const WorkerFormModal = ({
   );
 };
 
-// ─── Task Form ────────────────────────────────────────────────────────────────
+// ─── Task Form Modal ──────────────────────────────────────────────────────────
 
-const TaskForm = ({
+const PRIORITY_META = {
+  low:    { label: 'Baja',  description: 'Sin urgencia, puede esperar',    dot: 'bg-on-surface-variant' },
+  medium: { label: 'Media', description: 'Atender en el día o próximos días', dot: 'bg-secondary' },
+  high:   { label: 'Alta',  description: 'Requiere atención inmediata',    dot: 'bg-error' },
+} as const;
+
+const TaskFormModal = ({
   workers,
   workerId,
   onClose,
@@ -775,65 +781,169 @@ const TaskForm = ({
     priority: 'medium',
   });
 
+  const assignedWorker = workers.find((w) => w.id === form.worker_id);
+
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     try { await createTask.mutateAsync(form); onClose(); } catch { /* error below */ }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className={md3InputLabelClass}>Asignar a trabajador</label>
-        <select className={`${md3TextFieldClass} appearance-none`}
-          value={form.worker_id ?? ''}
-          onChange={(e) => setForm((p) => ({ ...p, worker_id: e.target.value ? Number(e.target.value) : null }))}>
-          <option value="">Sin asignar</option>
-          {workers.map((w) => (
-            <option key={w.id} value={w.id}>{w.full_name}{w.position ? ` — ${w.position}` : ''}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className={md3InputLabelClass}>Título de la tarea *</label>
-        <input required className={md3TextFieldClass} value={form.title}
-          onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
-      </div>
-      <div>
-        <label className={md3InputLabelClass}>Descripción</label>
-        <textarea rows={3} className={`${md3TextFieldClass} h-auto py-3 resize-none`}
-          value={form.description}
-          onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className={md3InputLabelClass}>Fecha límite</label>
-          <input type="date" className={md3TextFieldClass} value={form.due_date ?? ''}
-            onChange={(e) => setForm((p) => ({ ...p, due_date: e.target.value || null }))} />
-        </div>
-        <div>
-          <label className={md3InputLabelClass}>Prioridad</label>
-          <div className="mt-1 flex gap-2">
-            {(['low', 'medium', 'high'] as const).map((p) => (
-              <button key={p} type="button"
-                onClick={() => setForm((prev) => ({ ...prev, priority: p }))}
-                className={`flex-1 rounded-full border py-2 text-xs font-semibold transition ${
-                  form.priority === p
-                    ? `${priorityConfig[p].cls} border-transparent`
-                    : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/8'
-                }`}>
-                {priorityConfig[p].label}
-              </button>
-            ))}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className={`${md3SurfaceClass} w-full max-w-md shadow-2xl`}>
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 border-b border-outline-variant/40 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary-container">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-on-secondary-container">
+                <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-base font-semibold text-on-surface">Nueva tarea</p>
+              <p className="text-xs text-on-surface-variant">
+                {assignedWorker ? `Para ${assignedWorker.full_name}` : 'Sin asignar aún'}
+              </p>
+            </div>
           </div>
+          <button type="button" onClick={onClose}
+            className="rounded-full p-1.5 text-on-surface-variant hover:bg-on-surface/8 transition">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
         </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {createTask.isError && (
+            <div className="rounded-xl bg-error-container/50 px-4 py-3 text-sm text-on-error-container">
+              Ocurrió un error al crear la tarea. Inténtalo de nuevo.
+            </div>
+          )}
+
+          {/* Título */}
+          <div>
+            <label className={md3InputLabelClass}>¿Qué hay que hacer? *</label>
+            <input
+              required
+              autoFocus
+              placeholder="Ej: Llamar al proveedor, Limpiar área, Revisar caja..."
+              className={md3TextFieldClass}
+              value={form.title}
+              onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+            />
+          </div>
+
+          {/* Descripción */}
+          <div>
+            <label className={md3InputLabelClass}>Detalles adicionales</label>
+            <textarea
+              rows={3}
+              placeholder="Instrucciones, contexto o notas relevantes..."
+              className={`${md3TextFieldClass} h-auto py-3 resize-none`}
+              value={form.description}
+              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            />
+          </div>
+
+          {/* Asignar a trabajador */}
+          <div>
+            <label className={md3InputLabelClass}>Asignar a</label>
+            <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {/* Opción sin asignar */}
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, worker_id: null }))}
+                className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
+                  form.worker_id === null
+                    ? 'border-primary bg-primary-container/30'
+                    : 'border-outline-variant hover:bg-on-surface/4'
+                }`}
+              >
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-surface-container text-xs text-on-surface-variant">
+                  —
+                </div>
+                <span className="text-xs font-medium text-on-surface-variant">Sin asignar</span>
+              </button>
+
+              {workers.map((w) => (
+                <button
+                  key={w.id}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, worker_id: w.id }))}
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
+                    form.worker_id === w.id
+                      ? 'border-primary bg-primary-container/30'
+                      : 'border-outline-variant hover:bg-on-surface/4'
+                  }`}
+                >
+                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-on-primary">
+                    {getInitials(w.full_name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-on-surface leading-tight">{w.first_name}</p>
+                    {w.position && <p className="truncate text-[10px] text-on-surface-variant leading-tight">{w.position}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Fecha límite */}
+            <div>
+              <label className={md3InputLabelClass}>Fecha límite</label>
+              <input
+                type="date"
+                className={md3TextFieldClass}
+                value={form.due_date ?? ''}
+                onChange={(e) => setForm((p) => ({ ...p, due_date: e.target.value || null }))}
+              />
+            </div>
+
+            {/* Prioridad */}
+            <div>
+              <label className={md3InputLabelClass}>Prioridad</label>
+              <div className="mt-1 space-y-1.5">
+                {(['low', 'medium', 'high'] as const).map((p) => {
+                  const meta = PRIORITY_META[p];
+                  const selected = form.priority === p;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, priority: p }))}
+                      className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors ${
+                        selected
+                          ? 'border-primary bg-primary-container/30'
+                          : 'border-outline-variant hover:bg-on-surface/4'
+                      }`}
+                    >
+                      <div className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${meta.dot}`} />
+                      <div>
+                        <p className={`text-xs font-semibold leading-tight ${selected ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                          {meta.label}
+                        </p>
+                        <p className="text-[10px] text-on-surface-variant leading-tight">{meta.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button type="submit" className={`${md3FilledButtonClass} flex-1`} disabled={createTask.isPending}>
+              {createTask.isPending ? 'Guardando...' : 'Crear tarea'}
+            </button>
+            <button type="button" onClick={onClose} className={md3OutlinedButtonClass}>
+              Cancelar
+            </button>
+          </div>
+        </form>
       </div>
-      <div className="flex gap-3 pt-2">
-        <button type="submit" className={md3FilledButtonClass} disabled={createTask.isPending}>
-          {createTask.isPending ? 'Guardando...' : 'Crear tarea'}
-        </button>
-        <button type="button" onClick={onClose} className={md3OutlinedButtonClass}>Cancelar</button>
-      </div>
-    </form>
+    </div>
   );
 };
 
@@ -926,6 +1036,13 @@ export const WorkersPage = () => {
           onClose={() => setShowWorkerForm(false)}
         />
       )}
+      {showTaskForm && (
+        <TaskFormModal
+          workers={workers}
+          workerId={selectedWorkerId ?? undefined}
+          onClose={() => setShowTaskForm(false)}
+        />
+      )}
       {editingWorker && (
         <WorkerEditModal
           worker={editingWorker}
@@ -964,14 +1081,6 @@ export const WorkersPage = () => {
           )}
         </div>
       </section>
-
-      {/* Formulario de tarea (inline) */}
-      {showTaskForm && (
-        <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
-          <h2 className={`mb-4 ${md3TitleMediumClass}`}>Nueva tarea</h2>
-          <TaskForm workers={workers} workerId={selectedWorkerId ?? undefined} onClose={() => setShowTaskForm(false)} />
-        </section>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         {/* Lista de trabajadores */}
