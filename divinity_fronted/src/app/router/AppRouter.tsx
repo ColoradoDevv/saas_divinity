@@ -21,6 +21,7 @@ import { OnboardingPage } from '@/modules/onboarding/pages/OnboardingPage';
 import { WorkersPage } from '@/modules/workers/pages/WorkersPage';
 import { AdminLayout } from '@/shared/layouts/AdminLayout';
 import { DashboardLayout } from '@/shared/layouts/DashboardLayout';
+import { resolveMediaUrl } from '@/shared/utils/media';
 import {
   md3BodyLargeClass,
   md3BodyMediumClass,
@@ -93,7 +94,7 @@ export const AppRouter = () => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!link) return;
     if (organization?.logo_url) {
-      link.href = organization.logo_url;
+      link.href = resolveMediaUrl(organization.logo_url);
       link.type = 'image/png';
     } else {
       link.href = '/favicon.svg';
