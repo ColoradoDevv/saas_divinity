@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 
 import { useAuthStore } from '@/app/store/auth';
 import { useOrgStore } from '@/app/store/org';
+import { useTasks, useUpdateTask } from '@/modules/workers/hooks/useWorkers';
+import type { Task } from '@/modules/workers/types';
 import {
   md3BodyMediumClass,
   md3HeadlineMediumClass,
@@ -32,6 +34,201 @@ const getInitials = (firstName?: string, lastName?: string, username?: string) =
   if (firstName) return firstName[0].toUpperCase();
   if (username) return username[0].toUpperCase();
   return '?';
+};
+
+// ─── My Tasks panel ───────────────────────────────────────────────────────────
+
+const TASK_PRIORITY_META = {
+  high:   { label: 'Alta',  dot: 'bg-error',              border: 'border-l-error',     text: 'text-error' },
+  medium: { label: 'Media', dot: 'bg-secondary',          border: 'border-l-secondary', text: 'text-secondary' },
+  low:    { label: 'Baja',  dot: 'bg-on-surface-variant', border: 'border-l-outline',   text: 'text-on-surface-variant' },
+} as const;
+
+const TASK_STATUS_META = {
+  pending:     { label: 'Pendiente',   cls: 'bg-surface-container-high text-on-surface-variant' },
+  in_progress: { label: 'En progreso', cls: 'bg-primary-container text-on-primary-container' },
+  done:        { label: 'Completada',  cls: 'bg-tertiary-container text-on-tertiary-container' },
+  cancelled:   { label: 'Cancelada',   cls: 'bg-error-container/50 text-on-error-container' },
+} as const;
+
+interface DueDateInfo {
+  label: string;
+  cls: string;
+  urgent: boolean;
+}
+
+const getDueDateInfo = (dueDate: string | null, status: Task['status']): DueDateInfo | null => {
+  if (!dueDate || status === 'done' || status === 'cancelled') return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate + 'T00:00:00');
+  const diff = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0)
+    return { label: `Vencida hace ${Math.abs(diff)} día${Math.abs(diff) !== 1 ? 's' : ''}`, cls: 'bg-error-container/60 text-error', urgent: true };
+  if (diff === 0)
+    return { label: 'Vence hoy', cls: 'bg-secondary-container text-on-secondary-container', urgent: true };
+  if (diff === 1)
+    return { label: 'Vence mañana', cls: 'bg-surface-container-high text-on-surface-variant', urgent: false };
+  return { label: `En ${diff} días`, cls: 'bg-surface-container text-on-surface-variant', urgent: false };
+};
+
+const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
+
+const sortActiveTasks = (tasks: Task[]): Task[] =>
+  [...tasks]
+    .filter((t) => t.status === 'pending' || t.status === 'in_progress')
+    .sort((a, b) => {
+      // Overdue first, then today, then by priority, then by due date
+      const aInfo = getDueDateInfo(a.due_date, a.status);
+      const bInfo = getDueDateInfo(b.due_date, b.status);
+      if (aInfo?.urgent && !bInfo?.urgent) return -1;
+      if (!aInfo?.urgent && bInfo?.urgent) return 1;
+      const pa = PRIORITY_ORDER[a.priority] ?? 2;
+      const pb = PRIORITY_ORDER[b.priority] ?? 2;
+      if (pa !== pb) return pa - pb;
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
+      if (a.due_date) return -1;
+      if (b.due_date) return 1;
+      return 0;
+    });
+
+const MyTasksPanel = () => {
+  const { data: allTasks = [], isLoading } = useTasks();
+  const updateTask = useUpdateTask();
+  const [showAll, setShowAll] = useState(false);
+
+  const activeTasks = sortActiveTasks(allTasks);
+  const LIMIT = 4;
+  const visible = showAll ? activeTasks : activeTasks.slice(0, LIMIT);
+  const hasMore = activeTasks.length > LIMIT;
+
+  const advance = (task: Task) => {
+    const next: Task['status'] = task.status === 'pending' ? 'in_progress' : 'done';
+    updateTask.mutate({ id: task.id, payload: { status: next } });
+  };
+
+  return (
+    <section>
+      {/* Header */}
+      <div className="mb-3 flex items-center gap-3 px-1">
+        <div className="flex items-center gap-2">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-on-surface-variant">
+            <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg>
+          <h2 className={`font-semibold text-on-surface ${md3TitleMediumClass}`}>Mis tareas</h2>
+        </div>
+        {!isLoading && activeTasks.length > 0 && (
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+            activeTasks.some((t) => getDueDateInfo(t.due_date, t.status)?.urgent)
+              ? 'bg-error text-on-error'
+              : 'bg-primary-container text-on-primary-container'
+          }`}>
+            {activeTasks.length}
+          </span>
+        )}
+      </div>
+
+      {/* Loading skeleton */}
+      {isLoading && (
+        <div className="space-y-2.5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-2xl bg-surface-container" />
+          ))}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && activeTasks.length === 0 && (
+        <div className={`${md3SurfaceClass} flex flex-col items-center justify-center gap-3 py-10 text-center`}>
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-tertiary-container">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-on-tertiary-container">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-semibold text-on-surface">¡Estás al día!</p>
+            <p className={`mt-0.5 text-on-surface-variant ${md3BodyMediumClass}`}>
+              No tienes tareas pendientes por el momento.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Task list */}
+      {!isLoading && visible.length > 0 && (
+        <div className="space-y-2.5">
+          {visible.map((task) => {
+            const priority = TASK_PRIORITY_META[task.priority];
+            const dueDateInfo = getDueDateInfo(task.due_date, task.status);
+            const isUpdating = updateTask.isPending && updateTask.variables?.id === task.id;
+
+            return (
+              <div
+                key={task.id}
+                className={`group flex items-center gap-4 rounded-2xl border border-outline-variant/60 border-l-[3px] bg-surface px-4 py-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-all ${priority.border} ${
+                  isUpdating ? 'opacity-60' : 'hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)]'
+                }`}
+              >
+                {/* Priority dot */}
+                <div className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${priority.dot}`} />
+
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  <p className={`font-semibold text-on-surface leading-tight ${md3BodyMediumClass} ${
+                    task.status === 'in_progress' ? 'text-primary' : ''
+                  }`}>
+                    {task.title}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${TASK_STATUS_META[task.status].cls}`}>
+                      {TASK_STATUS_META[task.status].label}
+                    </span>
+                    {dueDateInfo && (
+                      <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${dueDateInfo.cls}`}>
+                        {dueDateInfo.urgent && (
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                        )}
+                        {dueDateInfo.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action button */}
+                {task.status !== 'done' && task.status !== 'cancelled' && (
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={() => advance(task)}
+                    className={`flex-shrink-0 rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${
+                      task.status === 'pending'
+                        ? 'bg-primary-container/50 text-primary hover:bg-primary-container'
+                        : 'bg-tertiary-container/60 text-on-tertiary-container hover:bg-tertiary-container'
+                    }`}
+                  >
+                    {isUpdating ? '...' : task.status === 'pending' ? 'Iniciar' : 'Completar'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Show more / less */}
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="w-full rounded-2xl border border-dashed border-outline-variant py-2.5 text-xs font-medium text-on-surface-variant transition hover:bg-on-surface/4"
+            >
+              {showAll ? 'Ver menos' : `Ver ${activeTasks.length - LIMIT} tarea${activeTasks.length - LIMIT !== 1 ? 's' : ''} más`}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
 };
 
 // ─── Shortcuts catalog ────────────────────────────────────────────────────────
@@ -212,6 +409,9 @@ export const DashboardPage = () => {
           )}
         </div>
       </section>
+
+      {/* ── My Tasks — only for staff workers ── */}
+      {role === 'staff' && <MyTasksPanel />}
 
       {/* ── Quick access ── */}
       <section>
