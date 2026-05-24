@@ -32,40 +32,236 @@ import {
   md3TitleMediumClass,
 } from '@/shared/ui/material';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Task / Priority helpers ──────────────────────────────────────────────────
 
 const priorityConfig = {
-  low: { label: 'Baja', cls: 'bg-surface-container text-on-surface-variant' },
-  medium: { label: 'Media', cls: 'bg-secondary-container text-on-secondary-container' },
-  high: { label: 'Alta', cls: 'bg-error-container text-on-error-container' },
+  low:    { label: 'Baja',   cls: 'bg-surface-container text-on-surface-variant' },
+  medium: { label: 'Media',  cls: 'bg-secondary-container text-on-secondary-container' },
+  high:   { label: 'Alta',   cls: 'bg-error-container text-on-error-container' },
 };
 
 const statusConfig = {
-  pending: { label: 'Pendiente', cls: 'bg-surface-container text-on-surface-variant' },
+  pending:     { label: 'Pendiente',   cls: 'bg-surface-container text-on-surface-variant' },
   in_progress: { label: 'En progreso', cls: 'bg-primary-container text-on-primary-container' },
-  done: { label: 'Completada', cls: 'bg-tertiary-container text-on-tertiary-container' },
-  cancelled: { label: 'Cancelada', cls: 'bg-error-container/50 text-on-error-container' },
+  done:        { label: 'Completada',  cls: 'bg-tertiary-container text-on-tertiary-container' },
+  cancelled:   { label: 'Cancelada',   cls: 'bg-error-container/50 text-on-error-container' },
 };
 
 const getInitials = (name: string) =>
   name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
-// ─── Module labels ────────────────────────────────────────────────────────────
+// ─── Module metadata ──────────────────────────────────────────────────────────
 
-const MODULE_LABELS: Record<string, string> = {
-  clients: 'Miembros',
-  workers: 'Trabajadores',
-  payments: 'Pagos',
-  attendance: 'Asistencia',
-  reports: 'Reportes',
+const MODULE_META: Record<string, { label: string; description: string; icon: React.ReactNode }> = {
+  clients: {
+    label: 'Miembros',
+    description: 'Registro y consulta de clientes o socios',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  payments: {
+    label: 'Pagos',
+    description: 'Registro y seguimiento de pagos',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+        <line x1="1" y1="10" x2="23" y2="10" />
+      </svg>
+    ),
+  },
+  attendance: {
+    label: 'Asistencia',
+    description: 'Control de entradas, salidas y horarios',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    ),
+  },
+  reports: {
+    label: 'Reportes',
+    description: 'Estadísticas e informes del negocio',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  },
 };
 
-const MODULE_ACTIONS = [
-  { key: 'view',   label: 'Ver' },
-  { key: 'create', label: 'Crear' },
-  { key: 'edit',   label: 'Editar' },
-  { key: 'delete', label: 'Eliminar' },
-];
+const getModuleLabel = (key: string) => MODULE_META[key]?.label ?? key;
+
+// ─── Permission presets ───────────────────────────────────────────────────────
+// Instead of raw checkboxes, give admins four meaningful levels per module.
+
+const PERMISSION_PRESETS = [
+  {
+    key: 'view_only',
+    label: 'Solo ver',
+    description: 'Puede consultar los registros, sin modificar nada',
+    perms: ['view'],
+  },
+  {
+    key: 'operator',
+    label: 'Ver y registrar',
+    description: 'Puede consultar y agregar nuevos registros',
+    perms: ['view', 'create'],
+  },
+  {
+    key: 'editor',
+    label: 'Ver, registrar y editar',
+    description: 'Puede ver, agregar y modificar registros existentes',
+    perms: ['view', 'create', 'edit'],
+  },
+  {
+    key: 'full_access',
+    label: 'Acceso total',
+    description: 'Control completo, incluyendo eliminar y desactivar',
+    perms: ['view', 'create', 'edit', 'delete'],
+  },
+] as const;
+
+type PresetKey = (typeof PERMISSION_PRESETS)[number]['key'];
+
+const getPresetKey = (perms: string[]): PresetKey | null => {
+  const sorted = [...perms].sort().join(',');
+  for (const p of PERMISSION_PRESETS) {
+    if ([...p.perms].sort().join(',') === sorted) return p.key;
+  }
+  return null;
+};
+
+// ─── Shared: permission section ───────────────────────────────────────────────
+
+const ModulePermissionsSection = ({
+  modules,
+  allowedModules,
+  modulePermissions,
+  onToggleModule,
+  onSetPermissions,
+}: {
+  modules: string[];
+  allowedModules: string[];
+  modulePermissions: Record<string, string[]>;
+  onToggleModule: (key: string) => void;
+  onSetPermissions: (key: string, perms: string[]) => void;
+}) => {
+  if (modules.length === 0) return null;
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-2">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-on-surface-variant">
+          <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        <p className="text-sm font-semibold text-on-surface">Acceso al sistema</p>
+      </div>
+      <p className="mb-4 text-xs text-on-surface-variant">
+        Activa las secciones a las que tendrá acceso y define qué puede hacer en cada una.
+      </p>
+      <div className="space-y-3">
+        {modules.filter((m) => m !== 'workers').map((key) => {
+          const active = allowedModules.includes(key);
+          const currentPerms = modulePermissions[key] ?? [];
+          const presetKey = getPresetKey(currentPerms);
+          const meta = MODULE_META[key];
+
+          return (
+            <div
+              key={key}
+              className={`overflow-hidden rounded-2xl border transition-colors ${
+                active ? 'border-primary' : 'border-outline-variant'
+              }`}
+            >
+              {/* Module header row */}
+              <button
+                type="button"
+                onClick={() => onToggleModule(key)}
+                className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
+                  active ? 'bg-primary-container/25' : 'hover:bg-on-surface/4'
+                }`}
+              >
+                {/* Toggle indicator */}
+                <div className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+                  active ? 'bg-primary' : 'bg-outline-variant'
+                }`}>
+                  <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                    active ? 'translate-x-4' : 'translate-x-0.5'
+                  }`} />
+                </div>
+                {/* Icon + labels */}
+                <div className={`flex items-center gap-2 flex-1 min-w-0 ${active ? 'text-primary' : 'text-on-surface-variant'}`}>
+                  {meta?.icon}
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold ${active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                      {meta?.label ?? key}
+                    </p>
+                    {meta?.description && (
+                      <p className="text-xs text-on-surface-variant truncate">{meta.description}</p>
+                    )}
+                  </div>
+                </div>
+                {active && (
+                  <span className="flex-shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-on-primary">
+                    Activo
+                  </span>
+                )}
+              </button>
+
+              {/* Permission level selector — only when module is active */}
+              {active && (
+                <div className="border-t border-primary/15 bg-surface-container/30 px-4 py-3">
+                  <p className="mb-2.5 text-xs font-medium text-on-surface-variant uppercase tracking-wide">
+                    ¿Qué puede hacer en esta sección?
+                  </p>
+                  <div className="space-y-1.5">
+                    {PERMISSION_PRESETS.map((preset) => {
+                      const selected = presetKey === preset.key;
+                      return (
+                        <button
+                          key={preset.key}
+                          type="button"
+                          onClick={() => onSetPermissions(key, [...preset.perms])}
+                          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                            selected
+                              ? 'bg-primary-container/60 ring-1 ring-primary/30'
+                              : 'hover:bg-on-surface/4'
+                          }`}
+                        >
+                          {/* Radio dot */}
+                          <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition-colors ${
+                            selected ? 'border-primary bg-primary' : 'border-outline-variant'
+                          }`}>
+                            {selected && <div className="m-auto mt-[3px] h-1.5 w-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm font-medium leading-tight ${selected ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                              {preset.label}
+                            </p>
+                            <p className="text-xs text-on-surface-variant leading-snug">
+                              {preset.description}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 // ─── Worker Edit Modal ────────────────────────────────────────────────────────
 
@@ -105,15 +301,11 @@ const WorkerEditModal = ({
     });
   };
 
-  const togglePermission = (moduleKey: string, action: string) => {
-    setForm((prev) => {
-      const perms = { ...(prev.module_permissions ?? {}) };
-      const current = perms[moduleKey] ?? [];
-      perms[moduleKey] = current.includes(action)
-        ? current.filter((a) => a !== action)
-        : [...current, action];
-      return { ...prev, module_permissions: perms };
-    });
+  const setModulePerms = (moduleKey: string, perms: string[]) => {
+    setForm((prev) => ({
+      ...prev,
+      module_permissions: { ...(prev.module_permissions ?? {}), [moduleKey]: perms },
+    }));
   };
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
@@ -124,25 +316,36 @@ const WorkerEditModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl`}>
-        <div className="p-6 sm:p-8">
-          {/* Header */}
-          <div className="mb-6 flex items-start justify-between gap-4">
-            <div>
-              <h3 className={md3TitleMediumClass}>Editar trabajador</h3>
-              <p className={`mt-0.5 text-on-surface-variant ${md3BodyMediumClass}`}>{worker.full_name}</p>
+      <div className={`${md3SurfaceClass} w-full max-w-xl max-h-[92vh] overflow-y-auto shadow-2xl`}>
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-outline-variant/40 bg-inherit px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary">
+              {getInitials(worker.full_name)}
             </div>
-            <button type="button" onClick={onClose}
-              className="flex-shrink-0 rounded-full p-1.5 text-on-surface-variant hover:bg-on-surface/8 transition">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
+            <div>
+              <p className="text-sm font-semibold text-on-surface">{worker.full_name}</p>
+              <p className="text-xs text-on-surface-variant">{worker.position}</p>
+            </div>
           </div>
+          <button type="button" onClick={onClose}
+            className="rounded-full p-1.5 text-on-surface-variant hover:bg-on-surface/8 transition">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Datos personales */}
-            <div className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Información personal */}
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-on-surface-variant">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+              </svg>
+              <p className="text-sm font-semibold text-on-surface">Información personal</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className={md3InputLabelClass}>Nombre *</label>
                 <input required className={md3TextFieldClass} value={form.first_name}
@@ -155,102 +358,50 @@ const WorkerEditModal = ({
               </div>
               <div>
                 <label className={md3InputLabelClass}>Correo electrónico</label>
-                <input type="email" className={md3TextFieldClass} value={form.email}
+                <input type="email" className={md3TextFieldClass} value={form.email ?? ''}
                   onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
               </div>
               <div>
                 <label className={md3InputLabelClass}>Teléfono *</label>
-                <input required className={md3TextFieldClass} value={form.phone}
+                <input required className={md3TextFieldClass} value={form.phone ?? ''}
                   onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
               </div>
               <div className="sm:col-span-2">
-                <label className={md3InputLabelClass}>Cargo / Posición *</label>
-                <input required className={md3TextFieldClass} value={form.position}
-                  placeholder="Barbero, Cajero, Maestro..."
+                <label className={md3InputLabelClass}>Cargo *</label>
+                <input required className={md3TextFieldClass} value={form.position ?? ''}
+                  placeholder="Ej: Barbero, Cajero, Recepcionista..."
                   onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))} />
               </div>
             </div>
+          </div>
 
-            {/* Módulos y permisos */}
-            {orgModules.length > 0 && (
-              <div>
-                <p className={`mb-2 ${md3InputLabelClass}`}>Módulos y permisos</p>
-                <p className={`mb-3 text-on-surface-variant ${md3BodyMediumClass}`}>
-                  Activa los módulos y elige qué acciones puede realizar en cada uno.
-                </p>
-                <div className="space-y-2">
-                  {orgModules.filter((m) => m !== 'workers').map((key) => {
-                    const active = (form.allowed_modules ?? []).includes(key);
-                    const activePerms = (form.module_permissions ?? {})[key] ?? [];
-                    return (
-                      <div key={key} className={`overflow-hidden rounded-[12px] border transition ${
-                        active ? 'border-primary' : 'border-outline-variant'
-                      }`}>
-                        <button
-                          type="button"
-                          onClick={() => toggleModule(key)}
-                          className={`flex w-full items-center gap-3 p-3 text-left transition ${
-                            active ? 'bg-primary-container/30' : 'hover:bg-on-surface/4'
-                          }`}>
-                          <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition ${
-                            active ? 'border-primary bg-primary' : 'border-outline-variant'
-                          }`}>
-                            {active && (
-                              <svg viewBox="0 0 16 16" fill="white" className="h-full w-full p-0.5">
-                                <path fillRule="evenodd" d="M13.566 3.734a.8.8 0 010 1.132l-6.4 6.4a.8.8 0 01-1.132 0l-3.2-3.2a.8.8 0 111.132-1.132L6.6 9.568l5.834-5.834a.8.8 0 011.132 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className={`text-sm font-medium ${active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-                            {MODULE_LABELS[key] ?? key}
-                          </span>
-                        </button>
-                        {active && (
-                          <div className="flex flex-wrap gap-2 border-t border-primary/20 bg-surface-container/30 px-3 py-2.5">
-                            {MODULE_ACTIONS.map(({ key: action, label }) => {
-                              const checked = activePerms.includes(action);
-                              return (
-                                <label key={action} className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition select-none ${
-                                  checked
-                                    ? 'border-primary bg-primary-container/40 text-on-surface'
-                                    : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/4'
-                                }`}>
-                                  <input
-                                    type="checkbox"
-                                    className="sr-only"
-                                    checked={checked}
-                                    onChange={() => togglePermission(key, action)}
-                                  />
-                                  {label}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+          {/* Permisos */}
+          {orgModules.length > 0 && (
+            <ModulePermissionsSection
+              modules={orgModules}
+              allowedModules={form.allowed_modules ?? []}
+              modulePermissions={form.module_permissions ?? {}}
+              onToggleModule={toggleModule}
+              onSetPermissions={setModulePerms}
+            />
+          )}
 
-            {updateWorker.isError && (
-              <p className={`text-error ${md3BodyMediumClass}`}>
-                Error al actualizar. Intenta de nuevo.
-              </p>
-            )}
-
-            <div className="flex gap-3 pt-2">
-              <button type="submit" className={`${md3FilledButtonClass} flex-1`}
-                disabled={updateWorker.isPending}>
-                {updateWorker.isPending ? 'Guardando...' : 'Guardar cambios'}
-              </button>
-              <button type="button" onClick={onClose} className={md3OutlinedButtonClass}>
-                Cancelar
-              </button>
+          {updateWorker.isError && (
+            <div className="rounded-xl bg-error-container/50 px-4 py-3 text-sm text-on-error-container">
+              Ocurrió un error al guardar. Inténtalo de nuevo.
             </div>
-          </form>
-        </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button type="submit" className={`${md3FilledButtonClass} flex-1`}
+              disabled={updateWorker.isPending}>
+              {updateWorker.isPending ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+            <button type="button" onClick={onClose} className={md3OutlinedButtonClass}>
+              Cancelar
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -279,12 +430,10 @@ const CredentialsModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className={`${md3SurfaceClass} w-full max-w-md p-6 shadow-2xl`}>
-        {/* Header */}
         <div className="mb-5 flex items-start gap-3">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-container">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-on-primary-container">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
           <div>
@@ -293,70 +442,50 @@ const CredentialsModal = ({
           </div>
         </div>
 
-        {/* Warning */}
-        <div className="mb-4 rounded-[12px] border border-outline-variant bg-surface-container-high p-3">
+        <div className="mb-4 rounded-xl border border-outline-variant bg-surface-container-high p-3">
           <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
-            Guarda estas credenciales ahora. No se volverán a mostrar.
+            Guarda estas credenciales ahora — no se volverán a mostrar.
           </p>
         </div>
 
-        {/* Username */}
         <div className="mb-3">
-          <label className={md3InputLabelClass}>Usuario (para iniciar sesión)</label>
+          <label className={md3InputLabelClass}>Usuario para iniciar sesión</label>
           <div className="mt-1 flex gap-2">
-            <input
-              readOnly
-              value={credentials.username}
-              className={`${md3TextFieldClass} flex-1 bg-surface-container-low font-mono text-sm`}
-            />
-            <button
-              type="button"
-              onClick={() => copy(credentials.username, 'username')}
-              className={`flex-shrink-0 rounded-[12px] border border-outline-variant px-3 py-2 text-sm font-medium transition hover:bg-on-surface/8 ${
+            <input readOnly value={credentials.username}
+              className={`${md3TextFieldClass} flex-1 bg-surface-container-low font-mono text-sm`} />
+            <button type="button" onClick={() => copy(credentials.username, 'username')}
+              className={`flex-shrink-0 rounded-xl border border-outline-variant px-3 py-2 text-sm font-medium transition hover:bg-on-surface/8 ${
                 copied === 'username' ? 'text-primary' : 'text-on-surface-variant'
               }`}>
-              {copied === 'username' ? '✓' : 'Copiar'}
+              {copied === 'username' ? '✓ Copiado' : 'Copiar'}
             </button>
           </div>
         </div>
 
-        {/* Password */}
         <div className="mb-5">
           <label className={md3InputLabelClass}>Contraseña</label>
           <div className="mt-1 flex gap-2">
             <div className="relative flex-1">
-              <input
-                readOnly
-                type={showPassword ? 'text' : 'password'}
-                value={credentials.password}
-                className={`${md3TextFieldClass} w-full bg-surface-container-low font-mono text-sm pr-10`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
+              <input readOnly type={showPassword ? 'text' : 'password'} value={credentials.password}
+                className={`${md3TextFieldClass} w-full bg-surface-container-low font-mono text-sm pr-10`} />
+              <button type="button" onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface">
-                {showPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-                )}
+                {showPassword
+                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                }
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => copy(credentials.password, 'password')}
-              className={`flex-shrink-0 rounded-[12px] border border-outline-variant px-3 py-2 text-sm font-medium transition hover:bg-on-surface/8 ${
+            <button type="button" onClick={() => copy(credentials.password, 'password')}
+              className={`flex-shrink-0 rounded-xl border border-outline-variant px-3 py-2 text-sm font-medium transition hover:bg-on-surface/8 ${
                 copied === 'password' ? 'text-primary' : 'text-on-surface-variant'
               }`}>
-              {copied === 'password' ? '✓' : 'Copiar'}
+              {copied === 'password' ? '✓ Copiado' : 'Copiar'}
             </button>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className={`${md3FilledButtonClass} w-full`}>
+        <button type="button" onClick={onClose} className={`${md3FilledButtonClass} w-full`}>
           Entendido, ya guardé las credenciales
         </button>
       </div>
@@ -364,9 +493,9 @@ const CredentialsModal = ({
   );
 };
 
-// ─── Worker Form ──────────────────────────────────────────────────────────────
+// ─── Worker Form Modal ────────────────────────────────────────────────────────
 
-const WorkerForm = ({
+const WorkerFormModal = ({
   orgModules,
   onCredentials,
   onClose,
@@ -398,28 +527,19 @@ const WorkerForm = ({
   const toggleModule = (key: string) => {
     setForm((prev) => {
       const isActive = prev.allowed_modules.includes(key);
-      const newMods = isActive
-        ? prev.allowed_modules.filter((m) => m !== key)
-        : [...prev.allowed_modules, key];
+      const newMods = isActive ? prev.allowed_modules.filter((m) => m !== key) : [...prev.allowed_modules, key];
       const newPerms = { ...prev.module_permissions };
-      if (isActive) {
-        delete newPerms[key];
-      } else if (!newPerms[key]?.length) {
-        newPerms[key] = ['view'];
-      }
+      if (isActive) { delete newPerms[key]; }
+      else if (!newPerms[key]?.length) { newPerms[key] = ['view']; }
       return { ...prev, allowed_modules: newMods, module_permissions: newPerms };
     });
   };
 
-  const togglePermission = (moduleKey: string, action: string) => {
-    setForm((prev) => {
-      const perms = { ...prev.module_permissions };
-      const current = perms[moduleKey] ?? [];
-      perms[moduleKey] = current.includes(action)
-        ? current.filter((a) => a !== action)
-        : [...current, action];
-      return { ...prev, module_permissions: perms };
-    });
+  const setModulePerms = (moduleKey: string, perms: string[]) => {
+    setForm((prev) => ({
+      ...prev,
+      module_permissions: { ...prev.module_permissions, [moduleKey]: perms },
+    }));
   };
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
@@ -435,229 +555,203 @@ const WorkerForm = ({
   };
 
   const showEmailField = form.credential_type === 'gmail' || !form.create_account;
-  const showPasswordField =
-    form.create_account &&
-    form.credential_type === 'gmail' &&
-    form.password_type === 'manual';
+  const showPasswordField = form.create_account && form.credential_type === 'gmail' && form.password_type === 'manual';
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {createWorker.isError && (
-        <div className="rounded-[12px] bg-error-container/50 p-3 text-on-error-container text-sm">
-          Error al crear trabajador. Verifica que el correo no esté en uso.
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className={md3InputLabelClass}>Nombre *</label>
-          <input required className={md3TextFieldClass} value={form.first_name}
-            onChange={(e) => setForm((p) => ({ ...p, first_name: e.target.value }))} />
-        </div>
-        <div>
-          <label className={md3InputLabelClass}>Apellido *</label>
-          <input required className={md3TextFieldClass} value={form.last_name}
-            onChange={(e) => setForm((p) => ({ ...p, last_name: e.target.value }))} />
-        </div>
-
-        {showEmailField && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className={`${md3SurfaceClass} w-full max-w-xl max-h-[92vh] overflow-y-auto shadow-2xl`}>
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-outline-variant/40 bg-inherit px-6 py-4">
           <div>
-            <label className={md3InputLabelClass}>
-              Correo electrónico {form.create_account && form.credential_type === 'gmail' ? '*' : ''}
-            </label>
-            <input
-              type="email"
-              className={md3TextFieldClass}
-              value={form.email}
-              required={form.create_account && form.credential_type === 'gmail'}
-              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+            <p className="text-base font-semibold text-on-surface">Agregar trabajador</p>
+            <p className="text-xs text-on-surface-variant">Completa los datos del nuevo integrante del equipo</p>
           </div>
-        )}
-
-        <div>
-          <label className={md3InputLabelClass}>Teléfono *</label>
-          <input required className={md3TextFieldClass} value={form.phone}
-            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+          <button type="button" onClick={onClose}
+            className="rounded-full p-1.5 text-on-surface-variant hover:bg-on-surface/8 transition">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <div className={showEmailField ? '' : 'sm:col-span-2'}>
-          <label className={md3InputLabelClass}>Cargo / Posición *</label>
-          <input required className={md3TextFieldClass} value={form.position}
-            placeholder="Barbero, Cajero, Maestro..."
-            onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))} />
-        </div>
-      </div>
 
-      {/* Cuenta del sistema */}
-      <div className="rounded-[16px] border border-outline-variant p-4 space-y-4">
-        <label className={`flex cursor-pointer items-center gap-3 ${md3BodyMediumClass}`}>
-          <input
-            type="checkbox"
-            checked={form.create_account}
-            onChange={(e) => setForm((p) => ({ ...p, create_account: e.target.checked }))}
-            className="h-4 w-4 rounded border-outline text-primary" />
-          <span className="font-medium text-on-surface">Crear cuenta en el sistema para este trabajador</span>
-        </label>
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {createWorker.isError && (
+            <div className="rounded-xl bg-error-container/50 px-4 py-3 text-sm text-on-error-container">
+              No se pudo crear el trabajador. Verifica que el correo no esté registrado.
+            </div>
+          )}
 
-        {form.create_account && (
-          <div className="space-y-4 border-t border-outline-variant pt-4">
-            {/* Tipo de usuario */}
-            <div>
-              <p className={`mb-2 ${md3InputLabelClass}`}>Tipo de usuario</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm((p) => ({ ...p, credential_type: 'gmail' }))}
-                  className={`rounded-[12px] border p-3 text-left transition ${
-                    form.credential_type === 'gmail'
-                      ? 'border-primary bg-primary-container/30'
-                      : 'border-outline-variant hover:bg-on-surface/4'
-                  }`}>
-                  <p className={`font-medium text-on-surface ${md3BodyMediumClass}`}>Gmail / Correo</p>
-                  <p className={`text-on-surface-variant text-xs`}>El correo es el usuario</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm((p) => ({ ...p, credential_type: 'auto', password_type: 'auto' }))}
-                  className={`rounded-[12px] border p-3 text-left transition ${
-                    form.credential_type === 'auto'
-                      ? 'border-primary bg-primary-container/30'
-                      : 'border-outline-variant hover:bg-on-surface/4'
-                  }`}>
-                  <p className={`font-medium text-on-surface ${md3BodyMediumClass}`}>Auto-generado</p>
-                  <p className={`text-on-surface-variant text-xs`}>Sistema genera usuario y contraseña</p>
-                </button>
+          {/* Datos personales */}
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-on-surface-variant">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+              </svg>
+              <p className="text-sm font-semibold text-on-surface">Datos personales</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className={md3InputLabelClass}>Nombre *</label>
+                <input required className={md3TextFieldClass} value={form.first_name}
+                  onChange={(e) => setForm((p) => ({ ...p, first_name: e.target.value }))} />
+              </div>
+              <div>
+                <label className={md3InputLabelClass}>Apellido *</label>
+                <input required className={md3TextFieldClass} value={form.last_name}
+                  onChange={(e) => setForm((p) => ({ ...p, last_name: e.target.value }))} />
+              </div>
+              {showEmailField && (
+                <div>
+                  <label className={md3InputLabelClass}>
+                    Correo electrónico {form.create_account && form.credential_type === 'gmail' ? '*' : ''}
+                  </label>
+                  <input type="email" className={md3TextFieldClass} value={form.email}
+                    required={form.create_account && form.credential_type === 'gmail'}
+                    onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+                </div>
+              )}
+              <div>
+                <label className={md3InputLabelClass}>Teléfono *</label>
+                <input required className={md3TextFieldClass} value={form.phone}
+                  onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+              </div>
+              <div className={showEmailField ? '' : 'sm:col-span-2'}>
+                <label className={md3InputLabelClass}>Cargo *</label>
+                <input required className={md3TextFieldClass} value={form.position}
+                  placeholder="Ej: Barbero, Cajero, Recepcionista..."
+                  onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))} />
               </div>
             </div>
+          </div>
 
-            {/* Tipo de contraseña (solo cuando es gmail) */}
-            {form.credential_type === 'gmail' && (
+          {/* Cuenta de acceso */}
+          <div className="rounded-2xl border border-outline-variant overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setForm((p) => ({ ...p, create_account: !p.create_account }))}
+              className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${
+                form.create_account ? 'bg-primary-container/25' : 'hover:bg-on-surface/4'
+              }`}
+            >
+              <div className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+                form.create_account ? 'bg-primary' : 'bg-outline-variant'
+              }`}>
+                <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  form.create_account ? 'translate-x-4' : 'translate-x-0.5'
+                }`} />
+              </div>
               <div>
-                <p className={`mb-2 ${md3InputLabelClass}`}>Contraseña</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setForm((p) => ({ ...p, password_type: 'manual' }))}
-                    className={`rounded-[12px] border p-3 text-left transition ${
-                      form.password_type === 'manual'
-                        ? 'border-primary bg-primary-container/30'
-                        : 'border-outline-variant hover:bg-on-surface/4'
-                    }`}>
-                    <p className={`font-medium text-on-surface ${md3BodyMediumClass}`}>Yo la defino</p>
-                    <p className="text-on-surface-variant text-xs">Escribes la contraseña</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm((p) => ({ ...p, password_type: 'auto', password: '' }))}
-                    className={`rounded-[12px] border p-3 text-left transition ${
-                      form.password_type === 'auto'
-                        ? 'border-primary bg-primary-container/30'
-                        : 'border-outline-variant hover:bg-on-surface/4'
-                    }`}>
-                    <p className={`font-medium text-on-surface ${md3BodyMediumClass}`}>Auto-generar</p>
-                    <p className="text-on-surface-variant text-xs">Sistema la crea segura</p>
-                  </button>
+                <p className="text-sm font-semibold text-on-surface">Crear cuenta de acceso al sistema</p>
+                <p className="text-xs text-on-surface-variant">El trabajador podrá iniciar sesión con usuario y contraseña</p>
+              </div>
+            </button>
+
+            {form.create_account && (
+              <div className="border-t border-outline-variant/50 px-4 py-4 space-y-4">
+                {/* Tipo de credencial */}
+                <div>
+                  <p className="mb-2 text-xs font-medium text-on-surface-variant uppercase tracking-wide">
+                    ¿Cómo iniciará sesión?
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button"
+                      onClick={() => setForm((p) => ({ ...p, credential_type: 'gmail' }))}
+                      className={`rounded-xl border p-3 text-left transition-colors ${
+                        form.credential_type === 'gmail'
+                          ? 'border-primary bg-primary-container/30'
+                          : 'border-outline-variant hover:bg-on-surface/4'
+                      }`}>
+                      <p className="text-sm font-semibold text-on-surface">Con su correo</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">Usa su email como usuario</p>
+                    </button>
+                    <button type="button"
+                      onClick={() => setForm((p) => ({ ...p, credential_type: 'auto', password_type: 'auto' }))}
+                      className={`rounded-xl border p-3 text-left transition-colors ${
+                        form.credential_type === 'auto'
+                          ? 'border-primary bg-primary-container/30'
+                          : 'border-outline-variant hover:bg-on-surface/4'
+                      }`}>
+                      <p className="text-sm font-semibold text-on-surface">Usuario generado</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">El sistema crea usuario y contraseña</p>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Campo contraseña manual */}
-            {showPasswordField && (
-              <div>
-                <label className={md3InputLabelClass}>Contraseña inicial *</label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  className={md3TextFieldClass}
-                  value={form.password}
-                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
-                <p className={`mt-1 text-on-surface-variant ${md3BodyMediumClass}`}>
-                  Mínimo 8 caracteres.
-                </p>
-              </div>
-            )}
+                {/* Contraseña (solo correo) */}
+                {form.credential_type === 'gmail' && (
+                  <div>
+                    <p className="mb-2 text-xs font-medium text-on-surface-variant uppercase tracking-wide">
+                      Contraseña inicial
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button"
+                        onClick={() => setForm((p) => ({ ...p, password_type: 'manual' }))}
+                        className={`rounded-xl border p-3 text-left transition-colors ${
+                          form.password_type === 'manual'
+                            ? 'border-primary bg-primary-container/30'
+                            : 'border-outline-variant hover:bg-on-surface/4'
+                        }`}>
+                        <p className="text-sm font-semibold text-on-surface">La defino yo</p>
+                        <p className="text-xs text-on-surface-variant mt-0.5">Escribes la contraseña ahora</p>
+                      </button>
+                      <button type="button"
+                        onClick={() => setForm((p) => ({ ...p, password_type: 'auto', password: '' }))}
+                        className={`rounded-xl border p-3 text-left transition-colors ${
+                          form.password_type === 'auto'
+                            ? 'border-primary bg-primary-container/30'
+                            : 'border-outline-variant hover:bg-on-surface/4'
+                        }`}>
+                        <p className="text-sm font-semibold text-on-surface">Generarla automáticamente</p>
+                        <p className="text-xs text-on-surface-variant mt-0.5">El sistema crea una segura</p>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-            {(form.credential_type === 'auto' || form.password_type === 'auto') && (
-              <div className="rounded-[12px] border border-outline-variant bg-surface-container-low p-3">
-                <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
-                  Las credenciales se mostrarán al guardar. Guárdalas en un lugar seguro.
-                </p>
+                {showPasswordField && (
+                  <div>
+                    <label className={md3InputLabelClass}>Contraseña inicial *</label>
+                    <input type="password" required minLength={8} className={md3TextFieldClass}
+                      value={form.password}
+                      onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
+                    <p className="mt-1 text-xs text-on-surface-variant">Mínimo 8 caracteres.</p>
+                  </div>
+                )}
+
+                {(form.credential_type === 'auto' || form.password_type === 'auto') && (
+                  <div className="flex items-start gap-2 rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2.5">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-0.5 flex-shrink-0 text-on-surface-variant">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <p className="text-xs text-on-surface-variant">
+                      Las credenciales se mostrarán al guardar. Asegúrate de anotarlas.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* Módulos y permisos */}
-      {selectableModules.length > 0 && (
-        <div>
-          <p className={`mb-2 ${md3InputLabelClass}`}>Módulos y permisos</p>
-          <p className={`mb-3 text-on-surface-variant ${md3BodyMediumClass}`}>
-            Activa los módulos y elige qué acciones puede realizar en cada uno.
-          </p>
-          <div className="space-y-2">
-            {selectableModules.map((key) => {
-              const active = form.allowed_modules.includes(key);
-              const activePerms = form.module_permissions[key] ?? [];
-              return (
-                <div key={key} className={`overflow-hidden rounded-[12px] border transition ${
-                  active ? 'border-primary' : 'border-outline-variant'
-                }`}>
-                  <button
-                    type="button"
-                    onClick={() => toggleModule(key)}
-                    className={`flex w-full items-center gap-3 p-3 text-left transition ${
-                      active ? 'bg-primary-container/30' : 'hover:bg-on-surface/4'
-                    }`}>
-                    <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition ${
-                      active ? 'border-primary bg-primary' : 'border-outline-variant'
-                    }`}>
-                      {active && (
-                        <svg viewBox="0 0 16 16" fill="white" className="h-full w-full p-0.5">
-                          <path fillRule="evenodd" d="M13.566 3.734a.8.8 0 010 1.132l-6.4 6.4a.8.8 0 01-1.132 0l-3.2-3.2a.8.8 0 111.132-1.132L6.6 9.568l5.834-5.834a.8.8 0 011.132 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </div>
-                    <span className={`text-sm font-medium ${active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-                      {MODULE_LABELS[key] ?? key}
-                    </span>
-                  </button>
-                  {active && (
-                    <div className="flex flex-wrap gap-2 border-t border-primary/20 bg-surface-container/30 px-3 py-2.5">
-                      {MODULE_ACTIONS.map(({ key: action, label }) => {
-                        const checked = activePerms.includes(action);
-                        return (
-                          <label key={action} className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition select-none ${
-                            checked
-                              ? 'border-primary bg-primary-container/40 text-on-surface'
-                              : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/4'
-                          }`}>
-                            <input
-                              type="checkbox"
-                              className="sr-only"
-                              checked={checked}
-                              onChange={() => togglePermission(key, action)}
-                            />
-                            {label}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          {/* Acceso al sistema */}
+          {selectableModules.length > 0 && (
+            <ModulePermissionsSection
+              modules={selectableModules}
+              allowedModules={form.allowed_modules}
+              modulePermissions={form.module_permissions}
+              onToggleModule={toggleModule}
+              onSetPermissions={setModulePerms}
+            />
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button type="submit" className={`${md3FilledButtonClass} flex-1`} disabled={createWorker.isPending}>
+              {createWorker.isPending ? 'Guardando...' : 'Agregar trabajador'}
+            </button>
+            <button type="button" onClick={onClose} className={md3OutlinedButtonClass}>Cancelar</button>
           </div>
-        </div>
-      )}
-
-      <div className="flex gap-3 pt-2">
-        <button type="submit" className={md3FilledButtonClass} disabled={createWorker.isPending}>
-          {createWorker.isPending ? 'Guardando...' : 'Agregar trabajador'}
-        </button>
-        <button type="button" onClick={onClose} className={md3OutlinedButtonClass}>Cancelar</button>
+        </form>
       </div>
-    </form>
+    </div>
   );
 };
 
@@ -683,23 +777,19 @@ const TaskForm = ({
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
-    try {
-      await createTask.mutateAsync(form);
-      onClose();
-    } catch { /* error below */ }
+    try { await createTask.mutateAsync(form); onClose(); } catch { /* error below */ }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className={md3InputLabelClass}>Asignar a trabajador</label>
-        <select
-          className={`${md3TextFieldClass} appearance-none`}
+        <select className={`${md3TextFieldClass} appearance-none`}
           value={form.worker_id ?? ''}
           onChange={(e) => setForm((p) => ({ ...p, worker_id: e.target.value ? Number(e.target.value) : null }))}>
           <option value="">Sin asignar</option>
           {workers.map((w) => (
-            <option key={w.id} value={w.id}>{w.full_name} {w.position ? `— ${w.position}` : ''}</option>
+            <option key={w.id} value={w.id}>{w.full_name}{w.position ? ` — ${w.position}` : ''}</option>
           ))}
         </select>
       </div>
@@ -717,8 +807,7 @@ const TaskForm = ({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className={md3InputLabelClass}>Fecha límite</label>
-          <input type="date" className={md3TextFieldClass}
-            value={form.due_date ?? ''}
+          <input type="date" className={md3TextFieldClass} value={form.due_date ?? ''}
             onChange={(e) => setForm((p) => ({ ...p, due_date: e.target.value || null }))} />
         </div>
         <div>
@@ -727,7 +816,7 @@ const TaskForm = ({
             {(['low', 'medium', 'high'] as const).map((p) => (
               <button key={p} type="button"
                 onClick={() => setForm((prev) => ({ ...prev, priority: p }))}
-                className={`flex-1 rounded-full border py-2 text-xs font-semibold capitalize transition ${
+                className={`flex-1 rounded-full border py-2 text-xs font-semibold transition ${
                   form.priority === p
                     ? `${priorityConfig[p].cls} border-transparent`
                     : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/8'
@@ -755,10 +844,7 @@ const TaskCard = ({ task }: { task: Task }) => {
   const deleteTask = useDeleteTask();
 
   const nextStatus: Record<Task['status'], Task['status']> = {
-    pending: 'in_progress',
-    in_progress: 'done',
-    done: 'pending',
-    cancelled: 'pending',
+    pending: 'in_progress', in_progress: 'done', done: 'pending', cancelled: 'pending',
   };
 
   return (
@@ -785,19 +871,14 @@ const TaskCard = ({ task }: { task: Task }) => {
         </div>
         <div className="flex flex-shrink-0 gap-1">
           {task.status !== 'done' && task.status !== 'cancelled' && (
-            <button
-              type="button"
+            <button type="button"
               onClick={() => updateTask.mutate({ id: task.id, payload: { status: nextStatus[task.status] } })}
               className="rounded-full px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/8 transition">
               {task.status === 'pending' ? 'Iniciar' : 'Completar'}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => deleteTask.mutate(task.id)}
-            className="rounded-full px-2 py-1.5 text-xs font-medium text-error hover:bg-error/8 transition">
-            ✕
-          </button>
+          <button type="button" onClick={() => deleteTask.mutate(task.id)}
+            className="rounded-full px-2 py-1.5 text-xs font-medium text-error hover:bg-error/8 transition">✕</button>
         </div>
       </div>
     </div>
@@ -837,6 +918,14 @@ export const WorkersPage = () => {
 
   return (
     <div className="space-y-6">
+      {/* Modales */}
+      {showWorkerForm && (
+        <WorkerFormModal
+          orgModules={orgModules}
+          onCredentials={handleWorkerCredentials}
+          onClose={() => setShowWorkerForm(false)}
+        />
+      )}
       {editingWorker && (
         <WorkerEditModal
           worker={editingWorker}
@@ -859,14 +948,14 @@ export const WorkersPage = () => {
             <span className={md3OverlineClass}>Gestión de equipo</span>
             <h1 className={`mt-2 ${md3HeadlineMediumClass}`}>Trabajadores</h1>
             <p className={`mt-1 text-on-surface-variant ${md3BodyMediumClass}`}>
-              {workers.length} trabajador{workers.length !== 1 ? 'es' : ''} activo{workers.length !== 1 ? 's' : ''} · {allTasks.filter((t) => t.status === 'pending').length} tareas pendientes
+              {workers.length} trabajador{workers.length !== 1 ? 'es' : ''} · {allTasks.filter((t) => t.status === 'pending').length} tareas pendientes
             </p>
           </div>
           {isAdmin && (
             <div className="flex gap-2">
               <button onClick={() => { setShowTaskForm(true); setSelectedWorkerId(null); }}
                 className={md3OutlinedButtonClass}>
-                + Tarea
+                + Nueva tarea
               </button>
               <button onClick={() => setShowWorkerForm(true)} className={md3FilledButtonClass}>
                 + Trabajador
@@ -876,18 +965,7 @@ export const WorkersPage = () => {
         </div>
       </section>
 
-      {/* Formularios */}
-      {showWorkerForm && (
-        <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
-          <h2 className={`mb-4 ${md3TitleMediumClass}`}>Nuevo trabajador</h2>
-          <WorkerForm
-            orgModules={orgModules}
-            onCredentials={handleWorkerCredentials}
-            onClose={() => setShowWorkerForm(false)}
-          />
-        </section>
-      )}
-
+      {/* Formulario de tarea (inline) */}
       {showTaskForm && (
         <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
           <h2 className={`mb-4 ${md3TitleMediumClass}`}>Nueva tarea</h2>
@@ -895,112 +973,146 @@ export const WorkersPage = () => {
         </section>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         {/* Lista de trabajadores */}
         <section>
-          <h2 className={`mb-3 px-1 text-on-surface-variant ${md3BodyMediumClass}`}>Equipo</h2>
+          <h2 className={`mb-3 px-1 text-xs font-semibold uppercase tracking-wider text-on-surface-variant`}>
+            Equipo ({workers.length})
+          </h2>
+
           {loadingWorkers ? (
-            <div className="flex justify-center py-8">
+            <div className="flex justify-center py-10">
               <span className="h-8 w-8 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
             </div>
           ) : workers.length === 0 ? (
-            <div className={`${md3SurfaceClass} p-6 text-center`}>
-              <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
-                Aún no hay trabajadores. Crea el primero.
-              </p>
+            <div className={`${md3SurfaceClass} p-8 text-center`}>
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-container">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-on-surface-variant">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+              <p className={`font-medium text-on-surface ${md3BodyMediumClass}`}>Sin trabajadores aún</p>
+              {isAdmin && (
+                <button onClick={() => setShowWorkerForm(true)}
+                  className="mt-3 text-sm font-medium text-primary hover:underline">
+                  Agregar el primero
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Filtro "Todas las tareas" */}
               <button
                 type="button"
                 onClick={() => setSelectedWorkerId(null)}
-                className={`flex w-full items-center gap-3 rounded-[16px] border p-4 text-left transition ${
+                className={`flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors ${
                   selectedWorkerId === null
                     ? 'border-primary bg-primary-container/30'
                     : 'border-outline-variant hover:bg-on-surface/4'
                 }`}>
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-secondary-container text-sm font-semibold text-on-secondary-container">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-secondary-container text-sm font-semibold text-on-secondary-container">
                   ≡
                 </div>
-                <div className="min-w-0">
+                <div>
                   <p className={`font-medium text-on-surface ${md3LabelLargeClass}`}>Todas las tareas</p>
-                  <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>{allTasks.length} tareas</p>
+                  <p className={`text-on-surface-variant text-xs`}>{allTasks.length} tareas en total</p>
                 </div>
               </button>
 
-              {workers.map((worker) => (
-                <div key={worker.id}
-                  className={`group overflow-hidden rounded-[16px] border transition ${
-                    selectedWorkerId === worker.id
-                      ? 'border-primary bg-primary-container/30'
-                      : 'border-outline-variant hover:bg-on-surface/4'
-                  }`}>
-                  {/* Fila principal — selecciona el trabajador */}
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedWorkerId(worker.id); setConfirmDeleteId(null); }}
-                    className="flex w-full items-center gap-3 p-4 text-left">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-on-primary">
-                      {getInitials(worker.full_name)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className={`truncate font-medium text-on-surface ${md3LabelLargeClass}`}>{worker.full_name}</p>
-                      <p className={`truncate text-on-surface-variant ${md3BodyMediumClass}`}>
-                        {worker.position} · {worker.task_count} tarea{worker.task_count !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                    {worker.has_account && (
-                      <span className="flex-shrink-0 rounded-full bg-primary-container px-2 py-0.5 text-[10px] font-semibold text-on-primary-container">
-                        Cuenta
-                      </span>
-                    )}
-                  </button>
+              {workers.map((worker) => {
+                const visibleModules = (worker.allowed_modules ?? []).filter(m => m !== 'workers');
+                const isSelected = selectedWorkerId === worker.id;
+                return (
+                  <div key={worker.id}
+                    className={`overflow-hidden rounded-2xl border transition-colors ${
+                      isSelected ? 'border-primary' : 'border-outline-variant'
+                    }`}>
+                    {/* Fila principal */}
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedWorkerId(worker.id); setConfirmDeleteId(null); }}
+                      className={`flex w-full items-center gap-3 p-3.5 text-left transition-colors ${
+                        isSelected ? 'bg-primary-container/30' : 'hover:bg-on-surface/4'
+                      }`}>
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary">
+                        {getInitials(worker.full_name)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`truncate font-semibold text-on-surface ${md3LabelLargeClass}`}>
+                          {worker.full_name}
+                        </p>
+                        <p className={`truncate text-on-surface-variant text-xs`}>
+                          {worker.position}{worker.task_count > 0 ? ` · ${worker.task_count} tarea${worker.task_count !== 1 ? 's' : ''}` : ''}
+                        </p>
+                      </div>
+                      {worker.has_account && (
+                        <span className="flex-shrink-0 rounded-full bg-tertiary-container px-2 py-0.5 text-[10px] font-semibold text-on-tertiary-container">
+                          Cuenta
+                        </span>
+                      )}
+                    </button>
 
-                  {/* Barra de acciones — solo para admin/manager, visible al hacer hover */}
-                  {isAdmin && <div className="hidden group-hover:flex items-center justify-end gap-1 border-t border-outline-variant/20 bg-surface-container/40 px-3 py-1.5">
-                    {confirmDeleteId === worker.id ? (
-                      <>
-                        <span className={`mr-1 text-error ${md3BodyMediumClass}`}>¿Eliminar a {worker.first_name}?</span>
-                        <button
-                          type="button"
-                          onClick={() => { deleteWorker.mutate(worker.id); setConfirmDeleteId(null); }}
-                          className="rounded-full px-3 py-1 text-xs font-semibold text-error hover:bg-error/10 transition">
-                          Sí, eliminar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="rounded-full px-3 py-1 text-xs font-medium text-on-surface-variant hover:bg-on-surface/8 transition">
-                          Cancelar
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setEditingWorker(worker)}
-                          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-on-surface-variant hover:bg-on-surface/8 transition">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteId(worker.id)}
-                          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-error hover:bg-error/8 transition">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                            <path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                          </svg>
-                          Eliminar
-                        </button>
-                      </>
+                    {/* Módulos habilitados */}
+                    {visibleModules.length > 0 && (
+                      <div className={`flex flex-wrap gap-1 px-3.5 pb-2 ${isSelected ? 'bg-primary-container/30' : ''}`}>
+                        {visibleModules.slice(0, 3).map((m) => (
+                          <span key={m}
+                            className="rounded-full bg-surface-container px-2 py-0.5 text-[10px] font-medium text-on-surface-variant">
+                            {getModuleLabel(m)}
+                          </span>
+                        ))}
+                        {visibleModules.length > 3 && (
+                          <span className="rounded-full bg-surface-container px-2 py-0.5 text-[10px] text-on-surface-variant">
+                            +{visibleModules.length - 3} más
+                          </span>
+                        )}
+                      </div>
                     )}
-                  </div>}
-                </div>
-              ))}
+
+                    {/* Acciones (siempre visibles para admin) */}
+                    {isAdmin && (
+                      <div className={`flex items-center justify-end gap-1 border-t border-outline-variant/20 px-3 py-1.5 ${
+                        isSelected ? 'bg-primary-container/20' : 'bg-surface-container/30'
+                      }`}>
+                        {confirmDeleteId === worker.id ? (
+                          <>
+                            <span className="mr-auto text-xs text-error">¿Eliminar a {worker.first_name}?</span>
+                            <button type="button"
+                              onClick={() => { deleteWorker.mutate(worker.id); setConfirmDeleteId(null); }}
+                              className="rounded-full px-3 py-1 text-xs font-semibold text-error hover:bg-error/10 transition">
+                              Sí, eliminar
+                            </button>
+                            <button type="button" onClick={() => setConfirmDeleteId(null)}
+                              className="rounded-full px-3 py-1 text-xs text-on-surface-variant hover:bg-on-surface/8 transition">
+                              Cancelar
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button type="button" onClick={() => setEditingWorker(worker)}
+                              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-on-surface-variant hover:bg-on-surface/8 transition">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                              Editar
+                            </button>
+                            <button type="button" onClick={() => setConfirmDeleteId(worker.id)}
+                              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-error hover:bg-error/8 transition">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                <path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                              </svg>
+                              Eliminar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
@@ -1008,13 +1120,11 @@ export const WorkersPage = () => {
         {/* Panel de tareas */}
         <section>
           <div className="mb-3 flex items-center justify-between px-1">
-            <h2 className={`text-on-surface-variant ${md3BodyMediumClass}`}>
-              {selectedWorker ? `Tareas de ${selectedWorker.full_name}` : 'Todas las tareas'}
+            <h2 className={`text-xs font-semibold uppercase tracking-wider text-on-surface-variant`}>
+              {selectedWorker ? `Tareas — ${selectedWorker.full_name}` : 'Todas las tareas'}
             </h2>
             {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setShowTaskForm(true)}
+              <button type="button" onClick={() => setShowTaskForm(true)}
                 className="text-sm font-medium text-primary hover:underline">
                 + Nueva tarea
               </button>
@@ -1023,9 +1133,20 @@ export const WorkersPage = () => {
 
           {workerTasks.length === 0 ? (
             <div className={`${md3SurfaceClass} p-8 text-center`}>
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-container">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-on-surface-variant">
+                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+              </div>
               <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
                 No hay tareas {selectedWorker ? `para ${selectedWorker.first_name}` : 'registradas'}.
               </p>
+              {isAdmin && (
+                <button onClick={() => setShowTaskForm(true)}
+                  className="mt-3 text-sm font-medium text-primary hover:underline">
+                  Crear la primera tarea
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
