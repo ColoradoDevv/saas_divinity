@@ -28,8 +28,8 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
   const enabledStandard = fieldConfigs.filter((c) => c.is_enabled);
   const enabledCustom = customFields.filter((c) => c.is_enabled);
 
-  // Check if the photo standard field is active
-  const photoConfig = enabledStandard.find((c) => c.field_name === 'photo');
+  // Photo is always shown; check field config only to know if it's required
+  const photoConfig = fieldConfigs.find((c) => c.field_name === 'photo');
   const photoRequired = photoConfig?.is_required ?? false;
 
   const [fixed, setFixed] = useState({
@@ -210,8 +210,8 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
                 </div>
               )}
 
-              {/* Foto del miembro (campo estándar especial) */}
-              {photoConfig && (
+              {/* Foto del miembro — siempre visible */}
+              {(
                 <div className="rounded-[16px] border border-outline-variant p-4">
                   <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
                     Foto del miembro{photoRequired ? ' *' : ''}
