@@ -316,7 +316,7 @@ class OrganizationLogoUploadView(APIView):
         except OrganizationModel.DoesNotExist:
             raise NotFound('Organización no encontrada.')
 
-        org.logo_url = f'{settings.MEDIA_URL}{filename}'
+        org.logo_url = request.build_absolute_uri(f'{settings.MEDIA_URL}{filename}')
         org.save()
 
         return Response({'logo_url': org.logo_url})

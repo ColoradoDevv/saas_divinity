@@ -8,6 +8,7 @@ import { applyMembership, useOrgStore } from '@/app/store/org';
 import { useThemeStore } from '@/app/store/theme';
 import { authService } from '@/modules/auth/services/authService';
 import { md3PageClass } from '@/shared/ui/material';
+import { resolveMediaUrl } from '@/shared/utils/media';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -178,7 +179,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         <div className="flex items-center gap-3">
           {organization?.logo_url ? (
             <img
-              src={organization.logo_url}
+              src={resolveMediaUrl(organization.logo_url)}
               alt={organization.name}
               className="h-9 max-w-[2.25rem] flex-shrink-0 object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
