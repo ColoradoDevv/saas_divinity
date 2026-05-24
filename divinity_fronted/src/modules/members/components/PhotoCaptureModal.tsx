@@ -50,13 +50,54 @@ export const PhotoCaptureModal = ({ onConfirm, onCancel }: Props) => {
     return () => stopCamera();
   }, [startCamera, stopCamera]);
 
-  const detectFace = useCallback(async (dataUrl: string): Promise<boolean> => {
-    // Cycle through validation text messages for UX
+  /**
+   * Analyzes pixel data to reject obviously invalid images:
+   * covered camera (near-black), totally washed out, or zero-content frames.
+   * Returns false when the image is too dark/uniform to contain a face.
+   */
+  const analyzePixels = useCallback((canvas: HTMLCanvasElement): boolean => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return false;
+
+    const { width, height } = canvas;
+    const data = ctx.getImageData(0, 0, width, height).data;
+
+    let totalLuma = 0;
+    let count = 0;
+    // Sample every ~10th pixel for speed
+    for (let i = 0; i < data.length; i += 40) {
+      totalLuma += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      count++;
+    }
+    const avgLuma = totalLuma / count;
+
+    // Too dark (covered camera) or totally overexposed
+    if (avgLuma < 25 || avgLuma > 245) return false;
+
+    // Measure variance — covered camera or blank wall has near-zero variance
+    let variance = 0;
+    for (let i = 0; i < data.length; i += 40) {
+      const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      variance += (luma - avgLuma) ** 2;
+    }
+    variance /= count;
+
+    // std dev < ~15 means uniform image — no discernible content
+    return variance > 225;
+  }, []);
+
+  const detectFace = useCallback(async (canvas: HTMLCanvasElement, dataUrl: string): Promise<boolean> => {
     let textIdx = 0;
     const textInterval = setInterval(() => {
       textIdx = (textIdx + 1) % VALIDATION_TEXTS.length;
       setValidationText(VALIDATION_TEXTS[textIdx]);
     }, 900);
+
+    // First: fast pixel analysis — reject black/blank frames immediately
+    if (!analyzePixels(canvas)) {
+      clearInterval(textInterval);
+      return false;
+    }
 
     try {
       // Native FaceDetector API (Chrome/Edge, requires secure context or localhost)
@@ -71,15 +112,15 @@ export const PhotoCaptureModal = ({ onConfirm, onCancel }: Props) => {
         return faces.length > 0;
       }
     } catch {
-      // FaceDetector failed — fall through to simulation
+      // FaceDetector not available or failed — pixel analysis already passed
     }
 
-    // Fallback: simulate 2.5s processing, then accept the photo
-    // (detection not available in this browser)
-    await new Promise<void>((res) => setTimeout(res, 2500));
+    // Fallback (Firefox/Safari): pixel analysis confirmed content exists.
+    // Brief pause for UX then accept.
+    await new Promise<void>((res) => setTimeout(res, 1800));
     clearInterval(textInterval);
     return true;
-  }, []);
+  }, [analyzePixels]);
 
   const handleCapture = useCallback(async () => {
     const video = videoRef.current;
@@ -96,7 +137,7 @@ export const PhotoCaptureModal = ({ onConfirm, onCancel }: Props) => {
     setModalState('validating');
     setValidationText(VALIDATION_TEXTS[0]);
 
-    const hasFace = await detectFace(dataUrl);
+    const hasFace = await detectFace(canvas, dataUrl);
     setModalState(hasFace ? 'valid' : 'invalid');
   }, [stopCamera, detectFace]);
 
