@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useOrgStore } from '@/app/store/org';
+import { useModulePermissions } from '@/shared/hooks/useModulePermission';
 import {
   md3BodyMediumClass,
   md3FilledButtonClass,
@@ -33,9 +33,7 @@ const StatusBadge = ({ status }: { status: MemberStatus }) => {
 
 export const MembersPage = () => {
   const navigate = useNavigate();
-  const role = useOrgStore((state) => state.role);
-  const isAdmin = role === 'admin';
-  const isAdminOrManager = role === 'admin' || role === 'manager';
+  const { canCreate, canEdit, canDelete } = useModulePermissions('clients');
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -85,7 +83,7 @@ export const MembersPage = () => {
               {total} miembro{total !== 1 ? 's' : ''} registrado{total !== 1 ? 's' : ''}
             </p>
           </div>
-          {isAdminOrManager && (
+          {canCreate && (
             <button type="button" onClick={() => setShowForm(true)} className={md3FilledButtonClass}>
               + Nuevo miembro
             </button>
@@ -175,14 +173,14 @@ export const MembersPage = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-1">
-                        {isAdminOrManager && (
+                        {canEdit && (
                           <button type="button"
                             onClick={() => setEditingMember(member)}
                             className="rounded-full px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-on-surface/8 transition">
                             Editar
                           </button>
                         )}
-                        {isAdmin && member.status === 'active' && (
+                        {canDelete && member.status === 'active' && (
                           confirmDeactivateId === member.id ? (
                             <>
                               <span className={`text-error ${md3BodyMediumClass}`}>¿Desactivar?</span>

@@ -60,6 +60,13 @@ const MODULE_LABELS: Record<string, string> = {
   reports: 'Reportes',
 };
 
+const MODULE_ACTIONS = [
+  { key: 'view',   label: 'Ver' },
+  { key: 'create', label: 'Crear' },
+  { key: 'edit',   label: 'Editar' },
+  { key: 'delete', label: 'Eliminar' },
+];
+
 // ─── Worker Edit Modal ────────────────────────────────────────────────────────
 
 const WorkerEditModal = ({
@@ -80,15 +87,32 @@ const WorkerEditModal = ({
     position: worker.position,
     allowed_modules: (worker.allowed_modules.length > 0 ? worker.allowed_modules : [...orgModules])
       .filter((m) => m !== 'workers'),
+    module_permissions: worker.module_permissions ?? {},
   });
 
   const toggleModule = (key: string) => {
     setForm((prev) => {
       const mods = prev.allowed_modules ?? [];
-      return {
-        ...prev,
-        allowed_modules: mods.includes(key) ? mods.filter((m) => m !== key) : [...mods, key],
-      };
+      const isActive = mods.includes(key);
+      const newMods = isActive ? mods.filter((m) => m !== key) : [...mods, key];
+      const newPerms = { ...(prev.module_permissions ?? {}) };
+      if (isActive) {
+        delete newPerms[key];
+      } else if (!newPerms[key]?.length) {
+        newPerms[key] = ['view'];
+      }
+      return { ...prev, allowed_modules: newMods, module_permissions: newPerms };
+    });
+  };
+
+  const togglePermission = (moduleKey: string, action: string) => {
+    setForm((prev) => {
+      const perms = { ...(prev.module_permissions ?? {}) };
+      const current = perms[moduleKey] ?? [];
+      perms[moduleKey] = current.includes(action)
+        ? current.filter((a) => a !== action)
+        : [...current, action];
+      return { ...prev, module_permissions: perms };
     });
   };
 
@@ -147,39 +171,63 @@ const WorkerEditModal = ({
               </div>
             </div>
 
-            {/* Módulos */}
+            {/* Módulos y permisos */}
             {orgModules.length > 0 && (
               <div>
-                <p className={`mb-2 ${md3InputLabelClass}`}>Módulos que puede ver</p>
+                <p className={`mb-2 ${md3InputLabelClass}`}>Módulos y permisos</p>
                 <p className={`mb-3 text-on-surface-variant ${md3BodyMediumClass}`}>
-                  Selecciona a qué secciones del sistema tendrá acceso este trabajador.
+                  Activa los módulos y elige qué acciones puede realizar en cada uno.
                 </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="space-y-2">
                   {orgModules.filter((m) => m !== 'workers').map((key) => {
                     const active = (form.allowed_modules ?? []).includes(key);
+                    const activePerms = (form.module_permissions ?? {})[key] ?? [];
                     return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => toggleModule(key)}
-                        className={`flex items-center gap-2 rounded-[12px] border p-3 text-left transition ${
-                          active
-                            ? 'border-primary bg-primary-container/30'
-                            : 'border-outline-variant hover:bg-on-surface/4'
-                        }`}>
-                        <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition ${
-                          active ? 'border-primary bg-primary' : 'border-outline-variant'
-                        }`}>
-                          {active && (
-                            <svg viewBox="0 0 16 16" fill="white" className="h-full w-full p-0.5">
-                              <path fillRule="evenodd" d="M13.566 3.734a.8.8 0 010 1.132l-6.4 6.4a.8.8 0 01-1.132 0l-3.2-3.2a.8.8 0 111.132-1.132L6.6 9.568l5.834-5.834a.8.8 0 011.132 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </div>
-                        <span className={`text-sm font-medium ${active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-                          {MODULE_LABELS[key] ?? key}
-                        </span>
-                      </button>
+                      <div key={key} className={`overflow-hidden rounded-[12px] border transition ${
+                        active ? 'border-primary' : 'border-outline-variant'
+                      }`}>
+                        <button
+                          type="button"
+                          onClick={() => toggleModule(key)}
+                          className={`flex w-full items-center gap-3 p-3 text-left transition ${
+                            active ? 'bg-primary-container/30' : 'hover:bg-on-surface/4'
+                          }`}>
+                          <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition ${
+                            active ? 'border-primary bg-primary' : 'border-outline-variant'
+                          }`}>
+                            {active && (
+                              <svg viewBox="0 0 16 16" fill="white" className="h-full w-full p-0.5">
+                                <path fillRule="evenodd" d="M13.566 3.734a.8.8 0 010 1.132l-6.4 6.4a.8.8 0 01-1.132 0l-3.2-3.2a.8.8 0 111.132-1.132L6.6 9.568l5.834-5.834a.8.8 0 011.132 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className={`text-sm font-medium ${active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                            {MODULE_LABELS[key] ?? key}
+                          </span>
+                        </button>
+                        {active && (
+                          <div className="flex flex-wrap gap-2 border-t border-primary/20 bg-surface-container/30 px-3 py-2.5">
+                            {MODULE_ACTIONS.map(({ key: action, label }) => {
+                              const checked = activePerms.includes(action);
+                              return (
+                                <label key={action} className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition select-none ${
+                                  checked
+                                    ? 'border-primary bg-primary-container/40 text-on-surface'
+                                    : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/4'
+                                }`}>
+                                  <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={checked}
+                                    onChange={() => togglePermission(key, action)}
+                                  />
+                                  {label}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -329,6 +377,10 @@ const WorkerForm = ({
 }) => {
   const createWorker = useCreateWorker();
   const selectableModules = orgModules.filter((m) => m !== 'workers');
+
+  const defaultPermissions: Record<string, string[]> = {};
+  selectableModules.forEach((key) => { defaultPermissions[key] = ['view']; });
+
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
@@ -336,6 +388,7 @@ const WorkerForm = ({
     phone: '',
     position: '',
     allowed_modules: [...selectableModules],
+    module_permissions: defaultPermissions as Record<string, string[]>,
     create_account: false,
     credential_type: 'gmail' as 'gmail' | 'auto',
     password_type: 'manual' as 'manual' | 'auto',
@@ -343,12 +396,30 @@ const WorkerForm = ({
   });
 
   const toggleModule = (key: string) => {
-    setForm((prev) => ({
-      ...prev,
-      allowed_modules: prev.allowed_modules.includes(key)
+    setForm((prev) => {
+      const isActive = prev.allowed_modules.includes(key);
+      const newMods = isActive
         ? prev.allowed_modules.filter((m) => m !== key)
-        : [...prev.allowed_modules, key],
-    }));
+        : [...prev.allowed_modules, key];
+      const newPerms = { ...prev.module_permissions };
+      if (isActive) {
+        delete newPerms[key];
+      } else if (!newPerms[key]?.length) {
+        newPerms[key] = ['view'];
+      }
+      return { ...prev, allowed_modules: newMods, module_permissions: newPerms };
+    });
+  };
+
+  const togglePermission = (moduleKey: string, action: string) => {
+    setForm((prev) => {
+      const perms = { ...prev.module_permissions };
+      const current = perms[moduleKey] ?? [];
+      perms[moduleKey] = current.includes(action)
+        ? current.filter((a) => a !== action)
+        : [...current, action];
+      return { ...prev, module_permissions: perms };
+    });
   };
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
@@ -517,40 +588,63 @@ const WorkerForm = ({
         )}
       </div>
 
-      {/* Módulos */}
+      {/* Módulos y permisos */}
       {selectableModules.length > 0 && (
         <div>
-          <p className={`mb-2 ${md3InputLabelClass}`}>Módulos que puede ver</p>
+          <p className={`mb-2 ${md3InputLabelClass}`}>Módulos y permisos</p>
           <p className={`mb-3 text-on-surface-variant ${md3BodyMediumClass}`}>
-            Selecciona a qué secciones del sistema tendrá acceso este trabajador.
+            Activa los módulos y elige qué acciones puede realizar en cada uno.
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="space-y-2">
             {selectableModules.map((key) => {
               const active = form.allowed_modules.includes(key);
+              const activePerms = form.module_permissions[key] ?? [];
               return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => toggleModule(key)}
-                  className={`flex items-center gap-2 rounded-[12px] border p-3 text-left transition ${
-                    active
-                      ? 'border-primary bg-primary-container/30'
-                      : 'border-outline-variant hover:bg-on-surface/4'
-                  }`}
-                >
-                  <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition ${
-                    active ? 'border-primary bg-primary' : 'border-outline-variant'
-                  }`}>
-                    {active && (
-                      <svg viewBox="0 0 16 16" fill="white" className="h-full w-full p-0.5">
-                        <path fillRule="evenodd" d="M13.566 3.734a.8.8 0 010 1.132l-6.4 6.4a.8.8 0 01-1.132 0l-3.2-3.2a.8.8 0 111.132-1.132L6.6 9.568l5.834-5.834a.8.8 0 011.132 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className={`text-sm font-medium ${active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-                    {MODULE_LABELS[key] ?? key}
-                  </span>
-                </button>
+                <div key={key} className={`overflow-hidden rounded-[12px] border transition ${
+                  active ? 'border-primary' : 'border-outline-variant'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => toggleModule(key)}
+                    className={`flex w-full items-center gap-3 p-3 text-left transition ${
+                      active ? 'bg-primary-container/30' : 'hover:bg-on-surface/4'
+                    }`}>
+                    <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition ${
+                      active ? 'border-primary bg-primary' : 'border-outline-variant'
+                    }`}>
+                      {active && (
+                        <svg viewBox="0 0 16 16" fill="white" className="h-full w-full p-0.5">
+                          <path fillRule="evenodd" d="M13.566 3.734a.8.8 0 010 1.132l-6.4 6.4a.8.8 0 01-1.132 0l-3.2-3.2a.8.8 0 111.132-1.132L6.6 9.568l5.834-5.834a.8.8 0 011.132 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className={`text-sm font-medium ${active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                      {MODULE_LABELS[key] ?? key}
+                    </span>
+                  </button>
+                  {active && (
+                    <div className="flex flex-wrap gap-2 border-t border-primary/20 bg-surface-container/30 px-3 py-2.5">
+                      {MODULE_ACTIONS.map(({ key: action, label }) => {
+                        const checked = activePerms.includes(action);
+                        return (
+                          <label key={action} className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition select-none ${
+                            checked
+                              ? 'border-primary bg-primary-container/40 text-on-surface'
+                              : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/4'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={checked}
+                              onChange={() => togglePermission(key, action)}
+                            />
+                            {label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

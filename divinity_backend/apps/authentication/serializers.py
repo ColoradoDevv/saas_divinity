@@ -47,6 +47,8 @@ class MembershipSerializer(serializers.Serializer):
     allowed_modules = serializers.ListField(
         child=serializers.CharField(), read_only=True, required=False, allow_null=True
     )
+    # Permisos por módulo para staff: {"clients": ["view","create"]}; null para admin/manager
+    module_permissions = serializers.DictField(read_only=True, required=False, allow_null=True)
     # Cargo del trabajador (solo para staff)
     position = serializers.CharField(read_only=True, required=False, allow_null=True)
 

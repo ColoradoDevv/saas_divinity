@@ -93,6 +93,21 @@ class TenantMiddleware:
             org_id=org.id,
         )
 
+        # Para staff: adjuntar módulos y permisos del perfil de trabajador
+        role = token.get('role')
+        if role == 'staff' and user_id:
+            from apps.workers.models import WorkerModel
+            try:
+                worker = WorkerModel.objects.get(user_id=int(user_id), organization_id=org.id)
+                request.worker_allowed_modules = worker.allowed_modules or []
+                request.worker_module_permissions = worker.module_permissions or {}
+            except WorkerModel.DoesNotExist:
+                request.worker_allowed_modules = []
+                request.worker_module_permissions = {}
+        else:
+            request.worker_allowed_modules = None
+            request.worker_module_permissions = None
+
         return self.get_response(request)
 
 

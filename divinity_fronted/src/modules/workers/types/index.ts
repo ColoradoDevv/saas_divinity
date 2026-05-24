@@ -11,6 +11,7 @@ export interface Worker {
   created_at: string;
   task_count: number;
   allowed_modules: string[];
+  module_permissions: Record<string, string[]>;
 }
 
 export interface GeneratedCredentials {
@@ -42,6 +43,7 @@ export interface CreateWorkerPayload {
   phone: string;
   position: string;
   allowed_modules?: string[];
+  module_permissions?: Record<string, string[]>;
   create_account?: boolean;
   credential_type?: 'gmail' | 'auto';
   password_type?: 'manual' | 'auto';
@@ -63,6 +65,7 @@ export interface UpdateWorkerPayload {
   phone?: string;
   position?: string;
   allowed_modules?: string[];
+  module_permissions?: Record<string, string[]>;
 }
 
 export interface UpdateTaskPayload {
