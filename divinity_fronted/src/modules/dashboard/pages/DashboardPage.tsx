@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuthStore } from '@/app/store/auth';
@@ -238,7 +238,7 @@ interface ShortcutDef {
   to: string;
   label: string;
   description: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   iconBg: string;
   comingSoon?: boolean;
 }
