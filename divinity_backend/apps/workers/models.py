@@ -23,6 +23,8 @@ class WorkerModel(models.Model):
     position = models.CharField(max_length=80, blank=True)  # "Barbero", "Cajero", etc.
     # Módulos del sistema que el trabajador puede ver (subconjunto de org.enabled_modules)
     allowed_modules = models.JSONField(default=list)
+    # Permisos por módulo: {"clients": ["view","create","edit","delete"], "payments": ["view"]}
+    module_permissions = models.JSONField(default=dict)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

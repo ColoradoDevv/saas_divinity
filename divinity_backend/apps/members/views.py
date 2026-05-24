@@ -22,7 +22,7 @@ from domain.members.exceptions import (
     MemberValidationError,
 )
 from infrastructure.middleware.tenant import module_permission
-from infrastructure.permissions.roles import IsAdminOnly, IsAdminOrManager
+from infrastructure.permissions.roles import IsAdminOnly, staff_module_action_permission
 from infrastructure.persistence.member_repositories import DjangoORMMemberRepository
 
 from .serializers import (
@@ -38,8 +38,14 @@ from .serializers import (
 
 MembersModuleEnabled = module_permission('clients')
 
-_BASE_PERMS = [permissions.IsAuthenticated, MembersModuleEnabled, IsAdminOrManager]
-_ADMIN_PERMS = [permissions.IsAuthenticated, MembersModuleEnabled, IsAdminOnly]
+_AUTH = permissions.IsAuthenticated
+_MOD  = MembersModuleEnabled
+
+_CAN_VIEW   = staff_module_action_permission('clients', 'view')
+_CAN_CREATE = staff_module_action_permission('clients', 'create')
+_CAN_EDIT   = staff_module_action_permission('clients', 'edit')
+_CAN_DELETE = staff_module_action_permission('clients', 'delete')
+_ADMIN_PERMS = [_AUTH, _MOD, IsAdminOnly]
 
 
 def _org_id(request) -> int:
@@ -56,12 +62,17 @@ def _org_id(request) -> int:
 # ------------------------------------------------------------------ #
 
 class MemberViewSet(viewsets.ViewSet):
-    permission_classes = _BASE_PERMS
+    permission_classes = [_AUTH, _MOD, _CAN_VIEW]
 
     def get_permissions(self):
-        if self.action == 'destroy':
-            return [p() for p in _ADMIN_PERMS]
-        return [p() for p in _BASE_PERMS]
+        action_perms = {
+            'list':     [_AUTH, _MOD, _CAN_VIEW],
+            'retrieve': [_AUTH, _MOD, _CAN_VIEW],
+            'create':   [_AUTH, _MOD, _CAN_CREATE],
+            'update':   [_AUTH, _MOD, _CAN_EDIT],
+            'destroy':  [_AUTH, _MOD, _CAN_DELETE],
+        }
+        return [p() for p in action_perms.get(self.action, [_AUTH, _MOD, _CAN_VIEW])]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

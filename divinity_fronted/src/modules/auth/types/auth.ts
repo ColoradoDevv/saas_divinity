@@ -39,6 +39,8 @@ export interface MembershipResponse {
   organization: Organization;
   /** Para usuarios staff: módulos que pueden ver. null = sin restricción (admin/manager). */
   allowed_modules: string[] | null;
+  /** Permisos granulares por módulo para staff: {"clients":["view","create"]}. null = sin restricción. */
+  module_permissions: Record<string, string[]> | null;
   /** Cargo del trabajador (solo para staff). */
   position: string | null;
 }

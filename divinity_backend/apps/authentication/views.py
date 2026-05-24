@@ -62,7 +62,7 @@ class LoginView(APIView):
 
         primitives = auth_session.to_primitives()
 
-        # Para staff: enriquecer la respuesta del login con position y allowed_modules
+        # Para staff: enriquecer la respuesta del login con position, allowed_modules y module_permissions
         if primitives.get('membership') and primitives['membership'].get('role') == 'staff':
             from apps.workers.models import WorkerModel
             org_id = primitives['membership']['organization']['id']
@@ -70,12 +70,15 @@ class LoginView(APIView):
                 worker = WorkerModel.objects.get(user_id=auth_session.user.id, organization_id=org_id)
                 primitives['membership']['position'] = worker.position or None
                 primitives['membership']['allowed_modules'] = worker.allowed_modules
+                primitives['membership']['module_permissions'] = worker.module_permissions or {}
             except WorkerModel.DoesNotExist:
                 primitives['membership']['position'] = None
                 primitives['membership']['allowed_modules'] = primitives['membership']['organization'].get('enabled_modules', [])
+                primitives['membership']['module_permissions'] = {}
         elif primitives.get('membership'):
             primitives['membership']['position'] = None
             primitives['membership']['allowed_modules'] = None
+            primitives['membership']['module_permissions'] = None
 
         output = AuthSessionSerializer(primitives).data
         return Response(output, status=status.HTTP_200_OK)
@@ -107,12 +110,15 @@ class MeView(APIView):
                         organization_id=membership.organization.id,
                     )
                     membership_data['allowed_modules'] = worker.allowed_modules
+                    membership_data['module_permissions'] = worker.module_permissions or {}
                     membership_data['position'] = worker.position or None
                 except WorkerModel.DoesNotExist:
                     membership_data['allowed_modules'] = membership.organization.enabled_modules
+                    membership_data['module_permissions'] = {}
                     membership_data['position'] = None
             else:
                 membership_data['allowed_modules'] = None
+                membership_data['module_permissions'] = None
                 membership_data['position'] = None
 
         data = {

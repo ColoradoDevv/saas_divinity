@@ -60,6 +60,7 @@ def _worker_to_dict(worker: WorkerModel, generated_credentials=None) -> dict:
         'created_at': worker.created_at,
         'task_count': worker.tasks.filter(status__in=['pending', 'in_progress']).count(),
         'allowed_modules': worker.allowed_modules,
+        'module_permissions': worker.module_permissions or {},
         'generated_credentials': generated_credentials,
     }
 
@@ -152,6 +153,8 @@ class WorkerListCreateView(APIView):
             except OrganizationModel.DoesNotExist:
                 allowed_modules = []
 
+        module_permissions = d.get('module_permissions') or {}
+
         worker = WorkerModel.objects.create(
             organization_id=org_id,
             user=user,
@@ -161,6 +164,7 @@ class WorkerListCreateView(APIView):
             phone=d.get('phone', ''),
             position=d.get('position', ''),
             allowed_modules=allowed_modules,
+            module_permissions=module_permissions,
         )
         return Response(
             WorkerReadSerializer(_worker_to_dict(worker, generated_credentials)).data,

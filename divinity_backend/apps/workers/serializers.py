@@ -14,6 +14,7 @@ class WorkerReadSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
     task_count = serializers.IntegerField(read_only=True, default=0)
     allowed_modules = serializers.ListField(child=serializers.CharField(), read_only=True)
+    module_permissions = serializers.DictField(read_only=True)
     # Solo presente en respuesta de creación cuando se auto-generan credenciales
     generated_credentials = serializers.DictField(required=False, allow_null=True, read_only=True)
 
@@ -34,6 +35,7 @@ class CreateWorkerSerializer(serializers.Serializer):
         style={'input_type': 'password'},
     )
     allowed_modules = serializers.ListField(child=serializers.CharField(), required=False, default=list)
+    module_permissions = serializers.DictField(required=False, default=dict)
 
 
 class UpdateWorkerSerializer(serializers.Serializer):
@@ -44,6 +46,7 @@ class UpdateWorkerSerializer(serializers.Serializer):
     position = serializers.CharField(max_length=80, required=False)
     is_active = serializers.BooleanField(required=False)
     allowed_modules = serializers.ListField(child=serializers.CharField(), required=False)
+    module_permissions = serializers.DictField(required=False)
 
 
 class TaskReadSerializer(serializers.Serializer):

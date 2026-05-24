@@ -185,6 +185,9 @@ export const OnboardingPage = () => {
       applyMembership({
         role: role ?? 'admin',
         organization: updatedOrg,
+        allowed_modules: null,
+        module_permissions: null,
+        position: null,
       });
       navigate('/dashboard', { replace: true });
     },
