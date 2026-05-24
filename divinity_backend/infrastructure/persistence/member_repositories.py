@@ -46,6 +46,8 @@ class DjangoORMMemberRepository(MemberRepositoryInterface):
             created_by_id=model.created_by_id,
             standard_fields=standard_fields,
             custom_fields=custom_fields,
+            photo_url=model.photo_url,
+            member_code=model.member_code,
         )
 
     def _save_standard_fields(self, model: MemberModel, standard_fields: dict) -> None:
@@ -87,6 +89,10 @@ class DjangoORMMemberRepository(MemberRepositoryInterface):
                 model.email = member.email
                 model.phone = member.phone
                 model.status = member.status
+                if member.photo_url:
+                    model.photo_url = member.photo_url
+                if member.member_code:
+                    model.member_code = member.member_code
                 model.save()
             else:
                 model = MemberModel.objects.create(
@@ -97,6 +103,8 @@ class DjangoORMMemberRepository(MemberRepositoryInterface):
                     phone=member.phone,
                     status=member.status,
                     created_by_id=member.created_by_id,
+                    photo_url=member.photo_url,
+                    member_code=member.member_code,
                 )
         except IntegrityError:
             raise MemberAlreadyExistsError(

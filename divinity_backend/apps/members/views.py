@@ -36,7 +36,7 @@ from .serializers import (
     MemberWriteSerializer,
 )
 
-MembersModuleEnabled = module_permission('members')
+MembersModuleEnabled = module_permission('clients')
 
 _BASE_PERMS = [permissions.IsAuthenticated, MembersModuleEnabled, IsAdminOrManager]
 _ADMIN_PERMS = [permissions.IsAuthenticated, MembersModuleEnabled, IsAdminOnly]

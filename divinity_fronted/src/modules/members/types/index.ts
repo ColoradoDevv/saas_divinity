@@ -15,6 +15,8 @@ export interface Member {
   created_by_id: number | null;
   standard_fields: Record<string, string>;
   custom_fields: Record<string, string>;
+  photo_url: string;
+  member_code: string;
 }
 
 export interface FieldConfig {

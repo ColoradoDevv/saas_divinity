@@ -27,11 +27,13 @@ from .serializers import (
     AcceptInviteSerializer,
     CreateOrganizationSerializer,
     InviteSerializer,
+    MemberRoleUpdateSerializer,
     MembershipSerializer,
     OnboardingSerializer,
     OrganizationSerializer,
     PaymentUpdateSerializer,
     RegisterOrganizationSerializer,
+    SuperUpdateOrganizationSerializer,
     UpdateOrganizationSerializer,
 )
 
@@ -131,6 +133,105 @@ class SuperOrganizationListCreateView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class SuperOrganizationDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_org(self, pk):
+        try:
+            return OrganizationModel.objects.prefetch_related(
+                'memberships__user', 'workers'
+            ).get(pk=pk)
+        except OrganizationModel.DoesNotExist:
+            raise NotFound('Organización no encontrada.')
+
+    def get(self, request, pk):
+        _require_superuser(request)
+        org = self._get_org(pk)
+        members = [
+            {
+                'id': m.id,
+                'user_id': m.user_id,
+                'email': m.user.email,
+                'first_name': m.user.first_name,
+                'last_name': m.user.last_name,
+                'role': m.role,
+                'is_active': m.is_active,
+                'joined_at': m.joined_at,
+            }
+            for m in org.memberships.all()
+        ]
+        workers = [
+            {
+                'id': w.id,
+                'first_name': w.first_name,
+                'last_name': w.last_name,
+                'email': w.email,
+                'phone': w.phone,
+                'position': w.position,
+                'is_active': w.is_active,
+            }
+            for w in org.workers.all()
+        ]
+        return Response({
+            'id': org.id,
+            'name': org.name,
+            'slug': org.slug,
+            'plan': org.plan,
+            'is_active': org.is_active,
+            'onboarding_completed': org.onboarding_completed,
+            'enabled_modules': org.enabled_modules,
+            'primary_color': org.primary_color,
+            'logo_url': org.logo_url,
+            'payment_status': org.payment_status,
+            'last_payment_date': org.last_payment_date,
+            'next_payment_date': org.next_payment_date,
+            'created_at': org.created_at,
+            'members': members,
+            'workers': workers,
+        })
+
+    def patch(self, request, pk):
+        _require_superuser(request)
+        org = self._get_org(pk)
+        serializer = SuperUpdateOrganizationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        for field, value in serializer.validated_data.items():
+            setattr(org, field, value)
+        org.save()
+        return Response(OrganizationSerializer(org).data)
+
+
+class SuperMemberUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk, user_id):
+        _require_superuser(request)
+        try:
+            membership = MembershipModel.objects.select_related('user').get(
+                organization_id=pk, user_id=user_id
+            )
+        except MembershipModel.DoesNotExist:
+            raise NotFound('Membresía no encontrada.')
+        serializer = MemberRoleUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+        if 'role' in d:
+            membership.role = d['role']
+        if 'is_active' in d:
+            membership.is_active = d['is_active']
+        membership.save()
+        return Response({
+            'id': membership.id,
+            'user_id': membership.user_id,
+            'email': membership.user.email,
+            'first_name': membership.user.first_name,
+            'last_name': membership.user.last_name,
+            'role': membership.role,
+            'is_active': membership.is_active,
+            'joined_at': membership.joined_at,
+        })
 
 
 class SuperPaymentUpdateView(APIView):
