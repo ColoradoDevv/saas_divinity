@@ -115,7 +115,7 @@ export const LoginPage = () => {
         className={`${md3SurfaceClass} w-full bg-surface/92 px-6 py-8 backdrop-blur-md sm:px-8 sm:py-10`}
       >
         <header>
-          <h1 className={`mt-3 ${md3HeadlineSmallClass}`}>Inicia sesión</h1>
+          <h1 className={`mt-3 place-self-center ${md3HeadlineSmallClass}`}>Inicia sesión</h1>
           <p className={`mt-2 text-on-surface-variant ${md3BodyLargeClass}`}>
             Ingresa tus credenciales para continuar al panel principal.
           </p>

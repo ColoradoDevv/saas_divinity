@@ -112,7 +112,7 @@ export const AdminDashboardPage = () => {
   return (
     <div className="space-y-6">
 
-      <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
+      <section className={`${md3SurfaceClass} p-6 `}>
         <span className={md3OverlineClass}>Super Admin</span>
         <h1 className={`mt-2 ${md3HeadlineMediumClass}`}>
           Bienvenido{user?.first_name ? `, ${user.first_name}` : ''}
