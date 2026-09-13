@@ -33,7 +33,7 @@ const StatusBadge = ({ status }: { status: MemberStatus }) => {
 
 export const MembersPage = () => {
   const navigate = useNavigate();
-  const { canCreate, canEdit, canDelete } = useModulePermissions('clients');
+  const { canCreate, canEdit, canDelete } = useModulePermissions('members');
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');

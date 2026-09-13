@@ -53,9 +53,9 @@ const getInitials = (name: string) =>
 // ─── Module metadata ──────────────────────────────────────────────────────────
 
 const MODULE_META: Record<string, { label: string; description: string; icon: React.ReactNode }> = {
-  clients: {
+  members: {
     label: 'Miembros',
-    description: 'Registro y consulta de clientes o socios',
+    description: 'Registro y consulta de clientes o miembros',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />

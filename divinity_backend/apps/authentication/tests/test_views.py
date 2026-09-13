@@ -39,7 +39,7 @@ class TestLoginView:
     def test_staff_user_gets_position_and_modules(self, api_client, make_user, make_org,
                                                    make_membership, make_worker):
         user = make_user(username='staff@ex.com', email='staff@ex.com', password='pass1234!')
-        org = make_org(enabled_modules=['workers', 'clients'])
+        org = make_org(enabled_modules=['workers', 'members'])
         make_membership(user, org, role='staff')
         make_worker(org, user=user, position='Barbero', allowed_modules=['workers'])
         resp = api_client.post(self.url, {'email': 'staff@ex.com', 'password': 'pass1234!'})
@@ -50,11 +50,11 @@ class TestLoginView:
     def test_staff_user_without_worker_model_falls_back_to_org_modules(
             self, api_client, make_user, make_org, make_membership):
         user = make_user(username='staffb@ex.com', email='staffb@ex.com', password='pass1234!')
-        org = make_org(enabled_modules=['clients', 'reports'])
+        org = make_org(enabled_modules=['members', 'reports'])
         make_membership(user, org, role='staff')
         resp = api_client.post(self.url, {'email': 'staffb@ex.com', 'password': 'pass1234!'})
         assert resp.status_code == status.HTTP_200_OK
-        assert set(resp.data['membership']['allowed_modules']) == {'clients', 'reports'}
+        assert set(resp.data['membership']['allowed_modules']) == {'members', 'reports'}
         assert resp.data['membership']['position'] is None
 
     def test_admin_user_has_null_position_and_modules(self, api_client, make_user, make_org,
@@ -111,13 +111,13 @@ class TestMeView:
                                                      make_membership, make_worker):
         user = make_user(username='st@ex.com', email='st@ex.com', password='pass!')
         make_membership(user, org, role='staff')
-        make_worker(org, user=user, position='Cajero', allowed_modules=['clients'])
+        make_worker(org, user=user, position='Cajero', allowed_modules=['members'])
         token = _make_jwt_for(user, org=org, role='staff')
         api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
         resp = api_client.get(self.url)
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data['membership']['position'] == 'Cajero'
-        assert resp.data['membership']['allowed_modules'] == ['clients']
+        assert resp.data['membership']['allowed_modules'] == ['members']
 
     def test_staff_without_worker_model_falls_back_to_org_modules(
             self, api_client, make_user, make_org, make_membership):

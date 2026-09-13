@@ -5,15 +5,28 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 
 @pytest.fixture(autouse=True)
-def disable_throttling(settings):
-    settings.REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
-    settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {}
+def disable_throttling(settings, monkeypatch):
+    # OJO: mutar settings.REST_FRAMEWORK acá NO alcanza para desactivar el
+    # throttling de forma confiable. DRF cachea DEFAULT_THROTTLE_CLASSES y
+    # DEFAULT_THROTTLE_RATES como atributos de CLASE (en APIView.throttle_classes
+    # y SimpleRateThrottle.THROTTLE_RATES) la primera vez que se importan esos
+    # módulos — típicamente durante la recolección de tests, antes de que este
+    # fixture llegue a correr. Mutar el dict de settings después no siempre
+    # invalida esa caché, lo que producía fallas intermitentes según el orden
+    # de ejecución (ej. ImproperlyConfigured: "No default throttle rate set for
+    # 'login' scope", o un AttributeError distinto si el request.user de la
+    # vista no es un usuario Django estándar). Por eso el throttling se anula
+    # directamente en el método que lo aplica, sin depender de esa caché.
+    monkeypatch.setattr('rest_framework.views.APIView.check_throttles', lambda self, request: None)
+
     settings.CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
         }
     }
 
+from apps.billing.models import MembershipPlanModel
+from apps.members.models import MemberModel
 from apps.organizations.models import MembershipModel, OrganizationModel
 from apps.workers.models import WorkerModel
 
@@ -50,7 +63,7 @@ def make_org(db):
             name=name,
             slug=slug,
             plan=plan,
-            enabled_modules=enabled_modules or ['workers', 'clients'],
+            enabled_modules=enabled_modules or ['workers', 'members', 'payments', 'attendance'],
             is_active=is_active,
             onboarding_completed=onboarding_completed,
             payment_status=payment_status,
@@ -79,6 +92,38 @@ def make_worker(db):
             user=user,
             position=position,
             allowed_modules=allowed_modules or [],
+            is_active=is_active,
+            **kwargs,
+        )
+    return _make
+
+
+@pytest.fixture
+def make_member(db):
+    def _make(organization, first_name='Ana', last_name='Gomez', email=None,
+               member_code='', status='active', **kwargs):
+        return MemberModel.objects.create(
+            organization=organization,
+            first_name=first_name,
+            last_name=last_name,
+            email=email or f'{first_name.lower()}.{last_name.lower()}@example.com',
+            member_code=member_code,
+            status=status,
+            **kwargs,
+        )
+    return _make
+
+
+@pytest.fixture
+def make_plan(db):
+    def _make(organization, name='Mensual', price='1000.00',
+               duration_value=1, duration_unit='month', is_active=True, **kwargs):
+        return MembershipPlanModel.objects.create(
+            organization=organization,
+            name=name,
+            price=price,
+            duration_value=duration_value,
+            duration_unit=duration_unit,
             is_active=is_active,
             **kwargs,
         )

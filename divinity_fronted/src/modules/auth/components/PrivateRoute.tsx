@@ -18,7 +18,7 @@ interface PrivateRouteProps {
 
 // Módulos requeridos por ruta
 const ROUTE_MODULES: Record<string, string> = {
-  '/clients': 'clients',
+  '/members': 'members',
   '/workers': 'workers',
   '/payments': 'payments',
   '/attendance': 'attendance',

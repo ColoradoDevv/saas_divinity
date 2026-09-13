@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -11,19 +12,33 @@ import { DashboardLayout } from '../DashboardLayout';
 vi.mock('@/assets/images/brand/isotipo-blanco.svg', () => ({ default: 'isotipo-blanco.svg' }));
 vi.mock('@/assets/images/brand/isotipo-color.svg', () => ({ default: 'isotipo-color.svg' }));
 
+// NotificationBell hace fetch real vía TanStack Query — se mockea el service
+// para que la campanita no dependa de un backend real en este test.
+vi.mock('@/modules/notifications/services/notificationService', () => ({
+  notificationService: {
+    list: vi.fn().mockResolvedValue({ count: 0, page: 1, results: [] }),
+    unreadCount: vi.fn().mockResolvedValue(0),
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+  },
+}));
+
 const org = {
   id: 1, name: 'Mi Empresa', slug: 'mi-empresa', plan: 'pro',
-  enabled_modules: ['workers', 'clients'],
+  enabled_modules: ['workers', 'members'],
   is_active: true, onboarding_completed: true, primary_color: '', logo_url: '',
 };
 
 function renderLayout() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter>
-      <DashboardLayout>
-        <div>page content</div>
-      </DashboardLayout>
-    </MemoryRouter>
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>
+        <DashboardLayout>
+          <div>page content</div>
+        </DashboardLayout>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

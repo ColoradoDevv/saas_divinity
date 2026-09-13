@@ -13,9 +13,19 @@ class TestOrganizationModel:
     def test_defaults(self, db):
         org = OrganizationModel.objects.create(name='Def Org', slug='def-org')
         assert org.plan == 'pro'
+        assert org.business_type == 'generic'
         assert org.is_active is True
         assert org.onboarding_completed is False
         assert org.payment_status == 'unpaid'
+        assert org.currency == 'COP'
+
+    def test_currency_accepts_other_supported_codes(self, db):
+        org = OrganizationModel.objects.create(name='USD Org', slug='usd-org', currency='USD')
+        assert org.currency == 'USD'
+
+    def test_business_type_accepts_gym(self, db):
+        org = OrganizationModel.objects.create(name='Gym Org', slug='gym-org', business_type='gym')
+        assert org.business_type == 'gym'
 
     def test_slug_unique_raises_integrity_error(self, make_org):
         make_org(slug='unique-slug')

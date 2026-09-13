@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/shared/api/api';
+import { useAddonCatalog } from '@/shared/hooks/useAddonCatalog';
+import { useVerticalCatalog } from '@/shared/hooks/useVerticalCatalog';
 import {
   md3BodyMediumClass,
   md3CardClass,
@@ -24,6 +26,7 @@ interface OrgSummary {
   name: string;
   slug: string;
   plan: 'pro' | 'enterprise';
+  business_type: string;
   is_active: boolean;
   onboarding_completed: boolean;
   enabled_modules: string[];
@@ -67,6 +70,7 @@ interface OrgDetail extends OrgSummary {
 interface CreateOrgPayload {
   name: string;
   plan: string;
+  business_type: string;
   enabled_modules: string[];
   admin_email: string;
   admin_password: string;
@@ -98,6 +102,7 @@ const updateOrgSettings = async ({
   id: number;
   name?: string;
   plan?: string;
+  business_type?: string;
   enabled_modules?: string[];
   is_active?: boolean;
   primary_color?: string;
@@ -145,14 +150,6 @@ const updatePayment = async ({
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const MODULE_OPTIONS = [
-  { key: 'clients', label: 'Miembros' },
-  { key: 'workers', label: 'Trabajadores' },
-  { key: 'payments', label: 'Pagos' },
-  { key: 'attendance', label: 'Asistencia' },
-  { key: 'reports', label: 'Reportes' },
-];
 
 const PLAN_OPTIONS = ['pro', 'enterprise'];
 
@@ -274,10 +271,13 @@ const ROLE_LABEL: Record<string, string> = {
 
 const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => void }) => {
   const qc = useQueryClient();
+  const { data: catalog } = useVerticalCatalog();
+  const { data: addons = [] } = useAddonCatalog();
   const [tab, setTab] = useState<ManageTab>('general');
   const [generalForm, setGeneralForm] = useState<{
     name: string;
     plan: string;
+    business_type: string;
     is_active: boolean;
     primary_color: string;
     logo_url: string;
@@ -295,6 +295,7 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
       setGeneralForm({
         name: org.name,
         plan: org.plan,
+        business_type: org.business_type,
         is_active: org.is_active,
         primary_color: org.primary_color ?? '',
         logo_url: org.logo_url ?? '',
@@ -307,6 +308,7 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
     setGeneralForm({
       name: org.name,
       plan: org.plan,
+      business_type: org.business_type,
       is_active: org.is_active,
       primary_color: org.primary_color ?? '',
       logo_url: org.logo_url ?? '',
@@ -330,6 +332,8 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
     },
   });
 
+  const moduleOptions = catalog?.[generalForm?.business_type ?? '']?.modules ?? [];
+
   const toggleModule = (key: string) => {
     if (!generalForm) return;
     setGeneralForm((p) => p && ({
@@ -337,6 +341,21 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
       enabled_modules: p.enabled_modules.includes(key)
         ? p.enabled_modules.filter((m) => m !== key)
         : [...p.enabled_modules, key],
+    }));
+  };
+
+  const changeBusinessType = (businessType: string) => {
+    if (!generalForm) return;
+    // Los complementos (ej. biometric_devices) no dependen del vertical — si
+    // ya estaban otorgados, no se pierden al cambiar el negocio de vertical.
+    const validKeys = new Set([
+      ...(catalog?.[businessType]?.modules ?? []).map((m) => m.key),
+      ...addons.map((a) => a.key),
+    ]);
+    setGeneralForm((p) => p && ({
+      ...p,
+      business_type: businessType,
+      enabled_modules: p.enabled_modules.filter((m) => validKeys.has(m)),
     }));
   };
 
@@ -437,6 +456,30 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
                 </div>
               </div>
 
+              {/* Tipo de negocio / vertical */}
+              <div>
+                <label className={md3InputLabelClass}>Tipo de negocio</label>
+                <p className={`mb-1 text-xs text-on-surface-variant`}>
+                  Determina qué módulos puede tener habilitados esta empresa.
+                </p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {Object.entries(catalog ?? {}).map(([key, def]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => changeBusinessType(key)}
+                      className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                        generalForm.business_type === key
+                          ? 'border-primary bg-primary text-on-primary'
+                          : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/8'
+                      }`}
+                    >
+                      {def.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Activo */}
               <div className="flex items-center justify-between rounded-xl border border-outline-variant px-4 py-3">
                 <div>
@@ -508,7 +551,7 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
               <div>
                 <label className={md3InputLabelClass}>Módulos habilitados</label>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {MODULE_OPTIONS.map(({ key, label }) => (
+                  {moduleOptions.map(({ key, label }) => (
                     <button
                       key={key}
                       type="button"
@@ -524,6 +567,33 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
                   ))}
                 </div>
               </div>
+
+              {/* Complementos — no forman parte del plan normal, solo el superadmin los otorga */}
+              {addons.length > 0 && (
+                <div>
+                  <label className={md3InputLabelClass}>Complementos</label>
+                  <p className={`mb-2 text-on-surface-variant ${md3BodyMediumClass}`}>
+                    Se activan por fuera del plan del vertical — típicamente porque el negocio los adquirió
+                    aparte y requieren instalación manual.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {addons.map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleModule(key)}
+                        className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                          generalForm.enabled_modules.includes(key)
+                            ? 'border-tertiary bg-tertiary-container text-on-tertiary-container'
+                            : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/8'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
           ) : tab === 'members' ? (
@@ -648,7 +718,8 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
 const DEFAULT_FORM: CreateOrgPayload = {
   name: '',
   plan: 'pro',
-  enabled_modules: ['clients'],
+  business_type: 'generic',
+  enabled_modules: ['members'],
   admin_email: '',
   admin_password: '',
   admin_first_name: '',
@@ -657,6 +728,8 @@ const DEFAULT_FORM: CreateOrgPayload = {
 
 export const AdminOrganizationsPage = () => {
   const queryClient = useQueryClient();
+  const { data: catalog } = useVerticalCatalog();
+  const { data: addons = [] } = useAddonCatalog();
   const [showForm, setShowForm] = useState(false);
   const [paymentOrg, setPaymentOrg] = useState<OrgSummary | null>(null);
   const [manageOrgId, setManageOrgId] = useState<number | null>(null);
@@ -676,12 +749,26 @@ export const AdminOrganizationsPage = () => {
     },
   });
 
+  const moduleOptions = catalog?.[form.business_type]?.modules ?? [];
+
   const toggleModule = (key: string) => {
     setForm((prev) => ({
       ...prev,
       enabled_modules: prev.enabled_modules.includes(key)
         ? prev.enabled_modules.filter((m) => m !== key)
         : [...prev.enabled_modules, key],
+    }));
+  };
+
+  const changeBusinessType = (businessType: string) => {
+    const validKeys = new Set([
+      ...(catalog?.[businessType]?.modules ?? []).map((m) => m.key),
+      ...addons.map((a) => a.key),
+    ]);
+    setForm((prev) => ({
+      ...prev,
+      business_type: businessType,
+      enabled_modules: prev.enabled_modules.filter((m) => validKeys.has(m)),
     }));
   };
 
@@ -779,9 +866,32 @@ export const AdminOrganizationsPage = () => {
               </div>
 
               <div>
+                <label className={md3InputLabelClass}>Tipo de negocio</label>
+                <p className={`mb-1 text-xs text-on-surface-variant`}>
+                  El servicio contratado: define qué módulos puede usar esta empresa.
+                </p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {Object.entries(catalog ?? {}).map(([key, def]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => changeBusinessType(key)}
+                      className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                        form.business_type === key
+                          ? 'border-primary bg-primary text-on-primary'
+                          : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/8'
+                      }`}
+                    >
+                      {def.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
                 <label className={md3InputLabelClass}>Módulos habilitados</label>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {MODULE_OPTIONS.map(({ key, label }) => (
+                  {moduleOptions.map(({ key, label }) => (
                     <button
                       key={key}
                       type="button"
@@ -797,6 +907,31 @@ export const AdminOrganizationsPage = () => {
                   ))}
                 </div>
               </div>
+
+              {addons.length > 0 && (
+                <div>
+                  <label className={md3InputLabelClass}>Complementos</label>
+                  <p className={`mb-2 text-on-surface-variant ${md3BodyMediumClass}`}>
+                    Solo si el cliente ya lo contrató aparte del plan.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {addons.map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleModule(key)}
+                        className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                          form.enabled_modules.includes(key)
+                            ? 'border-tertiary bg-tertiary-container text-on-tertiary-container'
+                            : 'border-outline-variant text-on-surface-variant hover:bg-on-surface/8'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </fieldset>
 
             <fieldset className="space-y-4">
@@ -890,6 +1025,9 @@ export const AdminOrganizationsPage = () => {
                     <p className={`font-semibold text-on-surface ${md3TitleMediumClass}`}>{org.name}</p>
                     <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${planBadge[org.plan] ?? planBadge.pro}`}>
                       {org.plan === 'pro' ? 'Pro' : 'Enterprise'}
+                    </span>
+                    <span className="rounded-full border border-outline-variant px-2.5 py-0.5 text-[11px] font-semibold text-on-surface-variant">
+                      {catalog?.[org.business_type]?.label ?? org.business_type}
                     </span>
                     <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${paymentBadge[org.payment_status]}`}>
                       {paymentLabel[org.payment_status]}

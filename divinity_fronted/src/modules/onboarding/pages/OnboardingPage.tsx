@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 
 import { applyMembership, useOrgStore } from '@/app/store/org';
 import { api } from '@/shared/api/api';
+import { useVerticalCatalog } from '@/shared/hooks/useVerticalCatalog';
 import {
   md3BodyLargeClass,
   md3BodyMediumClass,
@@ -28,14 +29,6 @@ interface OnboardingPayload {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const MODULE_OPTIONS = [
-  { key: 'clients', label: 'Clientes', description: 'Gestiona tu cartera de clientes.' },
-  { key: 'workers', label: 'Trabajadores', description: 'Administra tu equipo y sus tareas.' },
-  { key: 'payments', label: 'Pagos', description: 'Control de facturación y cobros.' },
-  { key: 'attendance', label: 'Asistencia', description: 'Registro de presencia del equipo.' },
-  { key: 'reports', label: 'Reportes', description: 'Análisis y estadísticas del negocio.' },
-];
 
 const PRESET_COLORS = [
   '#1e40af', '#0e7490', '#065f46', '#7c3aed',
@@ -171,12 +164,15 @@ export const OnboardingPage = () => {
   const organization = useOrgStore((state) => state.organization);
   const role = useOrgStore((state) => state.role);
 
+  const { data: catalog } = useVerticalCatalog();
+  const moduleOptions = catalog?.[organization?.business_type ?? 'generic']?.modules ?? [];
+
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<OnboardingPayload>({
     name: organization?.name ?? '',
     primary_color: organization?.primary_color || '#1e40af',
     logo_url: organization?.logo_url ?? '',
-    enabled_modules: organization?.enabled_modules ?? ['clients'],
+    enabled_modules: organization?.enabled_modules ?? ['members'],
   });
 
   const mutation = useMutation({
@@ -294,7 +290,7 @@ export const OnboardingPage = () => {
       subtitle: 'Selecciona los módulos que necesita tu empresa. Puedes cambiarlos después.',
       content: (
         <div className="space-y-3">
-          {MODULE_OPTIONS.map(({ key, label, description }) => {
+          {moduleOptions.map(({ key, label }) => {
             const active = form.enabled_modules.includes(key);
             return (
               <button
@@ -308,7 +304,6 @@ export const OnboardingPage = () => {
                 }`}>
                 <div>
                   <p className={`font-medium text-on-surface ${md3TitleMediumClass}`}>{label}</p>
-                  <p className={`mt-0.5 text-on-surface-variant ${md3BodyMediumClass}`}>{description}</p>
                 </div>
                 <div className={`h-5 w-5 flex-shrink-0 rounded-full border-2 transition ${
                   active ? 'border-primary bg-primary' : 'border-outline-variant'

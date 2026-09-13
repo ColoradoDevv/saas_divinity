@@ -20,10 +20,14 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'apps.authentication',
     'apps.organizations',
-    'apps.clients',
     'apps.workers',
     'apps.audit',
     'apps.members',
+    'apps.billing',
+    'apps.attendance',
+    'apps.notifications',
+    'apps.classes',
+    'apps.member_portal',
 ]
 
 MIDDLEWARE = [
@@ -113,6 +117,24 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
 ]
+
+# Base para armar links absolutos en emails (invitación al portal del miembro, etc.)
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+
+# ── Email ──────────────────────────────────────────────────────────────────
+# Backend genérico de Django (no un SDK de proveedor) — funciona con cualquier
+# proveedor SMTP (Gmail, SendGrid, Resend, SES, Mailgun...) con solo cambiar
+# estas variables de entorno. Por defecto usa el backend de consola: los
+# emails se imprimen en la terminal del `runserver`, sin necesitar credenciales.
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend'
+)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@divinity.local')
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

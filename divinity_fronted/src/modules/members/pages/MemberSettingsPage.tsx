@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useOrgStore } from '@/app/store/org';
+import { useToast } from '@/shared/hooks/useToast';
 import {
   md3BodyMediumClass,
   md3DestructiveButtonClass,
@@ -15,7 +16,7 @@ import {
   md3TitleMediumClass,
 } from '@/shared/ui/material';
 import { useCustomFields, useCreateCustomField, useUpdateCustomField, useDeleteCustomField } from '../hooks/useCustomFields';
-import { useFieldConfig, useUpdateFieldConfig } from '../hooks/useFieldConfig';
+import { useApplyRecommendedFieldConfig, useFieldConfig, useUpdateFieldConfig } from '../hooks/useFieldConfig';
 import type { CreateCustomFieldData, CustomField, FieldConfig } from '../types';
 
 const FIELD_LABELS: Record<string, string> = {
@@ -26,6 +27,11 @@ const FIELD_LABELS: Record<string, string> = {
   photo: 'Foto',
   notes: 'Notas',
   gender: 'Género',
+  emergency_contact_name: 'Contacto de emergencia',
+  emergency_contact_phone: 'Teléfono de emergencia',
+  medical_conditions: 'Condiciones médicas / alergias',
+  goal: 'Objetivo',
+  referred_by: 'Referido por',
 };
 
 const FIELD_TYPE_LABELS: Record<string, string> = {
@@ -222,6 +228,7 @@ const CustomFieldModal = ({
 export const MemberSettingsPage = () => {
   const navigate = useNavigate();
   const role = useOrgStore((state) => state.role);
+  const organization = useOrgStore((state) => state.organization);
 
   useEffect(() => {
     if (role && role !== 'admin') navigate('/dashboard', { replace: true });
@@ -230,8 +237,10 @@ export const MemberSettingsPage = () => {
   const { data: fieldConfigs = [], isLoading: loadingConfig } = useFieldConfig();
   const { data: customFields = [], isLoading: loadingCustom } = useCustomFields();
   const updateFieldConfig = useUpdateFieldConfig();
+  const applyRecommended = useApplyRecommendedFieldConfig();
   const deleteCustomField = useDeleteCustomField();
 
+  const showToast = useToast();
   const [localConfigs, setLocalConfigs] = useState<FieldConfig[]>([]);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [customFieldModal, setCustomFieldModal] = useState<{ open: boolean; editing: CustomField | null }>({
@@ -255,6 +264,15 @@ export const MemberSettingsPage = () => {
   const handleDelete = async (id: number) => {
     await deleteCustomField.mutateAsync(id);
     setConfirmDeleteId(null);
+  };
+
+  const handleApplyRecommended = async () => {
+    const result = await applyRecommended.mutateAsync();
+    showToast(
+      result.created > 0
+        ? `Se activaron ${result.created} campos recomendados.`
+        : 'Ya tenías todos los campos recomendados configurados.',
+    );
   };
 
   if (role && role !== 'admin') return null;
@@ -286,11 +304,23 @@ export const MemberSettingsPage = () => {
               Activa los campos que quieres recopilar. Puedes renombrar cada etiqueta.
             </p>
           </div>
-          {saveSuccess && (
-            <span className="rounded-full bg-tertiary-container px-4 py-1.5 text-sm font-medium text-on-tertiary-container">
-              Guardado
-            </span>
-          )}
+          <div className="flex flex-shrink-0 items-center gap-3">
+            {saveSuccess && (
+              <span className="rounded-full bg-tertiary-container px-4 py-1.5 text-sm font-medium text-on-tertiary-container">
+                Guardado
+              </span>
+            )}
+            {organization?.business_type === 'gym' && (
+              <button
+                type="button"
+                onClick={handleApplyRecommended}
+                disabled={applyRecommended.isPending}
+                className={md3OutlinedButtonClass}
+              >
+                {applyRecommended.isPending ? 'Aplicando...' : 'Aplicar configuración recomendada'}
+              </button>
+            )}
+          </div>
         </div>
 
         {loadingConfig ? (

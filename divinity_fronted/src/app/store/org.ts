@@ -8,7 +8,7 @@ interface OrgState {
   role: string | null;
   /** null = sin restricción (admin/manager). Array = módulos permitidos para staff. */
   allowedModules: string[] | null;
-  /** Permisos granulares por módulo para staff: {"clients":["view","create"]}. null = sin restricción. */
+  /** Permisos granulares por módulo para staff: {"members":["view","create"]}. null = sin restricción. */
   modulePermissions: Record<string, string[]> | null;
   /** Cargo del trabajador (solo para staff). */
   position: string | null;

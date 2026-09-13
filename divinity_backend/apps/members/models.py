@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 
 STANDARD_FIELD_CHOICES = [
@@ -10,6 +11,11 @@ STANDARD_FIELD_CHOICES = [
     ('photo', 'Foto'),
     ('notes', 'Notas'),
     ('gender', 'Género'),
+    ('emergency_contact_name', 'Contacto de emergencia'),
+    ('emergency_contact_phone', 'Teléfono de emergencia'),
+    ('medical_conditions', 'Condiciones médicas / alergias'),
+    ('goal', 'Objetivo'),
+    ('referred_by', 'Referido por'),
 ]
 
 STANDARD_FIELD_KEYS = [key for key, _ in STANDARD_FIELD_CHOICES]
@@ -44,11 +50,31 @@ class MemberModel(models.Model):
 
     photo_url = models.TextField(blank=True, default='')
     member_code = models.CharField(max_length=12, blank=True, default='')
+    # Descriptor facial (128 floats) calculado en el navegador con face-api.js a partir
+    # de photo_url — se usa para verificar identidad 1:1 en el check-in por rostro.
+    face_descriptor = models.JSONField(null=True, blank=True)
+    # Cuenta del portal de autoservicio — null hasta que el staff activa el acceso.
+    # OneToOne (no ForeignKey como WorkerModel.user): una cuenta de portal es un
+    # miembro puntual, no una persona que trabaja en varios gimnasios.
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='member_profile',
+    )
 
     class Meta:
         db_table = 'member'
         unique_together = [['organization', 'email']]
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'member_code'],
+                condition=~Q(member_code=''),
+                name='unique_member_code_per_org',
+            ),
+        ]
 
     def __str__(self) -> str:
         return f'{self.first_name} {self.last_name} <{self.email}>'

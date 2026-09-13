@@ -5,11 +5,13 @@ import {
   md3OutlinedButtonClass,
   md3TitleMediumClass,
 } from '@/shared/ui/material';
+import { computeFaceDescriptor } from '@/shared/utils/faceRecognition';
 
 type ModalState = 'live' | 'validating' | 'valid' | 'invalid' | 'cam_error';
 
 interface Props {
-  onConfirm: (dataUrl: string) => void;
+  /** faceDescriptor es null si no se pudo calcular (ej. navegador sin soporte) — el resto del flujo sigue funcionando sin verificación facial. */
+  onConfirm: (dataUrl: string, faceDescriptor: number[] | null) => void;
   onCancel: () => void;
 }
 
@@ -26,6 +28,7 @@ export const PhotoCaptureModal = ({ onConfirm, onCancel }: Props) => {
 
   const [modalState, setModalState] = useState<ModalState>('live');
   const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
+  const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(null);
   const [validationText, setValidationText] = useState(VALIDATION_TEXTS[0]);
 
   const stopCamera = useCallback(() => {
@@ -86,40 +89,29 @@ export const PhotoCaptureModal = ({ onConfirm, onCancel }: Props) => {
     return variance > 225;
   }, []);
 
-  const detectFace = useCallback(async (canvas: HTMLCanvasElement, dataUrl: string): Promise<boolean> => {
+  /** Detecta el rostro y calcula su descriptor con face-api.js (reconocimiento facial real). */
+  const detectFace = useCallback(async (canvas: HTMLCanvasElement): Promise<number[] | null> => {
     let textIdx = 0;
     const textInterval = setInterval(() => {
       textIdx = (textIdx + 1) % VALIDATION_TEXTS.length;
       setValidationText(VALIDATION_TEXTS[textIdx]);
     }, 900);
 
-    // First: fast pixel analysis — reject black/blank frames immediately
+    // Primero: análisis rápido de píxeles — descarta cámara tapada o pantalla en negro
+    // sin gastar el modelo de ML en un frame obviamente inválido.
     if (!analyzePixels(canvas)) {
       clearInterval(textInterval);
-      return false;
+      return null;
     }
 
     try {
-      // Native FaceDetector API (Chrome/Edge, requires secure context or localhost)
-      if ('FaceDetector' in window) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const fd = new (window as any).FaceDetector({ maxDetectedFaces: 1 });
-        const img = new Image();
-        img.src = dataUrl;
-        await new Promise<void>((res) => { img.onload = () => res(); });
-        const faces = await fd.detect(img);
-        clearInterval(textInterval);
-        return faces.length > 0;
-      }
+      const descriptor = await computeFaceDescriptor(canvas);
+      clearInterval(textInterval);
+      return descriptor;
     } catch {
-      // FaceDetector not available or failed — pixel analysis already passed
+      clearInterval(textInterval);
+      return null;
     }
-
-    // Fallback (Firefox/Safari): pixel analysis confirmed content exists.
-    // Brief pause for UX then accept.
-    await new Promise<void>((res) => setTimeout(res, 1800));
-    clearInterval(textInterval);
-    return true;
   }, [analyzePixels]);
 
   const handleCapture = useCallback(async () => {
@@ -137,12 +129,14 @@ export const PhotoCaptureModal = ({ onConfirm, onCancel }: Props) => {
     setModalState('validating');
     setValidationText(VALIDATION_TEXTS[0]);
 
-    const hasFace = await detectFace(canvas, dataUrl);
-    setModalState(hasFace ? 'valid' : 'invalid');
+    const descriptor = await detectFace(canvas);
+    setFaceDescriptor(descriptor);
+    setModalState(descriptor ? 'valid' : 'invalid');
   }, [stopCamera, detectFace]);
 
   const handleRetry = useCallback(() => {
     setCapturedDataUrl(null);
+    setFaceDescriptor(null);
     setModalState('live');
     startCamera();
   }, [startCamera]);
@@ -150,9 +144,9 @@ export const PhotoCaptureModal = ({ onConfirm, onCancel }: Props) => {
   const handleConfirm = useCallback(() => {
     if (capturedDataUrl) {
       stopCamera();
-      onConfirm(capturedDataUrl);
+      onConfirm(capturedDataUrl, faceDescriptor);
     }
-  }, [capturedDataUrl, stopCamera, onConfirm]);
+  }, [capturedDataUrl, faceDescriptor, stopCamera, onConfirm]);
 
   const handleCancel = useCallback(() => {
     stopCamera();

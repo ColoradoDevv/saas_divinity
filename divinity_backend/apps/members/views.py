@@ -1,7 +1,14 @@
+import secrets
+from datetime import timedelta
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from application.members.dtos import (
     ConfigureFieldDTO,
@@ -21,10 +28,14 @@ from domain.members.exceptions import (
     MemberNotFoundError,
     MemberValidationError,
 )
+from apps.member_portal.models import MemberPortalInvitationModel
+from apps.notifications.services import notify
 from infrastructure.middleware.tenant import module_permission
+from infrastructure.notifications.email_service import send_portal_invite_email, send_welcome_email
 from infrastructure.permissions.roles import IsAdminOnly, staff_module_action_permission
 from infrastructure.persistence.member_repositories import DjangoORMMemberRepository
 
+from .defaults import seed_recommended_member_fields
 from .serializers import (
     CustomFieldReadSerializer,
     CustomFieldUpdateSerializer,
@@ -36,15 +47,15 @@ from .serializers import (
     MemberWriteSerializer,
 )
 
-MembersModuleEnabled = module_permission('clients')
+MembersModuleEnabled = module_permission('members')
 
 _AUTH = permissions.IsAuthenticated
 _MOD  = MembersModuleEnabled
 
-_CAN_VIEW   = staff_module_action_permission('clients', 'view')
-_CAN_CREATE = staff_module_action_permission('clients', 'create')
-_CAN_EDIT   = staff_module_action_permission('clients', 'edit')
-_CAN_DELETE = staff_module_action_permission('clients', 'delete')
+_CAN_VIEW   = staff_module_action_permission('members', 'view')
+_CAN_CREATE = staff_module_action_permission('members', 'create')
+_CAN_EDIT   = staff_module_action_permission('members', 'edit')
+_CAN_DELETE = staff_module_action_permission('members', 'delete')
 _ADMIN_PERMS = [_AUTH, _MOD, IsAdminOnly]
 
 
@@ -117,6 +128,7 @@ class MemberViewSet(viewsets.ViewSet):
             created_by_id=request.user.id if request.user.is_authenticated else None,
             standard_fields=d.get('standard_fields', {}),
             custom_fields=d.get('custom_fields', {}),
+            face_descriptor=d.get('face_descriptor'),
         )
 
         try:
@@ -125,6 +137,16 @@ class MemberViewSet(viewsets.ViewSet):
             raise ValidationError(detail=str(exc))
         except MemberValidationError as exc:
             raise ValidationError(detail=str(exc))
+
+        org = request.organization
+        notify(
+            org_id, 'new_member',
+            f'Nuevo miembro: {member.first_name} {member.last_name}',
+            link=f'/members/{member.id}',
+        )
+        send_welcome_email(
+            to_email=member.email, first_name=member.first_name, organization_name=org.name,
+        )
 
         return Response(MemberReadSerializer(member.to_primitives()).data, status=status.HTTP_201_CREATED)
 
@@ -150,6 +172,7 @@ class MemberViewSet(viewsets.ViewSet):
             phone=d.get('phone'),
             standard_fields=d.get('standard_fields'),
             custom_fields=d.get('custom_fields'),
+            face_descriptor=d.get('face_descriptor'),
         )
 
         try:
@@ -169,6 +192,53 @@ class MemberViewSet(viewsets.ViewSet):
         if not deactivated:
             raise NotFound(detail='Miembro no encontrado.')
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ActivatePortalAccessView(APIView):
+    """POST /api/members/{id}/portal-access/ — admin-only. Crea la cuenta del
+    portal del miembro si no existe, genera una invitación y envía el email de
+    activación. Reenviar (con la cuenta ya creada) simplemente genera una
+    invitación nueva."""
+    permission_classes = _ADMIN_PERMS
+
+    def post(self, request, pk):
+        from apps.members.models import MemberModel
+
+        org_id = _org_id(request)
+        try:
+            member = MemberModel.objects.select_related('organization', 'user').get(pk=pk, organization_id=org_id)
+        except MemberModel.DoesNotExist:
+            raise NotFound(detail='Miembro no encontrado.')
+
+        UserModel = get_user_model()
+        if member.user_id is None:
+            if UserModel.objects.filter(email__iexact=member.email).exists():
+                raise ValidationError({
+                    'email': 'Ya existe una cuenta de sistema con este correo, no se puede activar el portal.'
+                })
+            user = UserModel.objects.create_user(
+                username=f'member-{member.organization_id}-{member.id}',
+                email=member.email,
+                password=secrets.token_urlsafe(32),
+                first_name=member.first_name,
+                last_name=member.last_name,
+                is_active=True,
+            )
+            member.user = user
+            member.save(update_fields=['user'])
+
+        invitation = MemberPortalInvitationModel.objects.create(
+            member=member,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        activation_url = f'{settings.FRONTEND_URL}/portal/activate/{invitation.token}'
+        send_portal_invite_email(
+            to_email=member.email,
+            first_name=member.first_name,
+            organization_name=member.organization.name,
+            activation_url=activation_url,
+        )
+        return Response({'sent': True}, status=status.HTTP_200_OK)
 
 
 # ------------------------------------------------------------------ #
@@ -227,6 +297,22 @@ class FieldConfigViewSet(viewsets.ViewSet):
             config = ConfigureFieldsService(self._repo).execute(dto)
             results.append(FieldConfigReadSerializer(config.to_primitives()).data)
         return Response(results)
+
+
+class ApplyRecommendedFieldConfigView(APIView):
+    """POST /api/members/field-config/apply-recommended/ — activa el set de
+    campos recomendado para gimnasios sin pisar configuración ya existente."""
+    permission_classes = _ADMIN_PERMS
+
+    def post(self, request):
+        org = request.organization
+        created = seed_recommended_member_fields(org)
+        repo = DjangoORMMemberRepository()
+        configs = repo.get_field_config(org.id)
+        return Response({
+            'created': created,
+            'field_configs': [FieldConfigReadSerializer(c.to_primitives()).data for c in configs],
+        })
 
 
 # ------------------------------------------------------------------ #

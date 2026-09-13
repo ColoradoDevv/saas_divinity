@@ -17,6 +17,8 @@ class DjangoORMOrganizationRepository(OrganizationRepositoryInterface):
             onboarding_completed=model.onboarding_completed,
             primary_color=model.primary_color or '',
             logo_url=model.logo_url or '',
+            business_type=model.business_type,
+            currency=model.currency,
         )
 
     def _to_membership_entity(self, model: MembershipModel) -> Membership:

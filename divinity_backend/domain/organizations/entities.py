@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from domain.organizations.currency import DEFAULT_CURRENCY
+from domain.organizations.verticals import BUSINESS_TYPE_GENERIC
 
 ROLE_ADMIN = 'admin'
 ROLE_MANAGER = 'manager'
@@ -9,14 +11,6 @@ ROLE_CHOICES = [ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF]
 PLAN_FREE = 'free'
 PLAN_PRO = 'pro'
 PLAN_ENTERPRISE = 'enterprise'
-
-MODULE_CLIENTS = 'clients'
-MODULE_PAYMENTS = 'payments'
-MODULE_ATTENDANCE = 'attendance'
-MODULE_REPORTS = 'reports'
-MODULE_WORKERS = 'workers'
-MODULE_MEMBERS = 'members'
-ALL_MODULES = [MODULE_CLIENTS, MODULE_PAYMENTS, MODULE_ATTENDANCE, MODULE_REPORTS, MODULE_WORKERS, MODULE_MEMBERS]
 
 
 @dataclass(frozen=True)
@@ -30,6 +24,8 @@ class Organization:
     onboarding_completed: bool
     primary_color: str
     logo_url: str
+    business_type: str = BUSINESS_TYPE_GENERIC
+    currency: str = DEFAULT_CURRENCY
 
     def to_primitives(self) -> dict:
         return {
@@ -42,6 +38,8 @@ class Organization:
             'onboarding_completed': self.onboarding_completed,
             'primary_color': self.primary_color,
             'logo_url': self.logo_url,
+            'business_type': self.business_type,
+            'currency': self.currency,
         }
 
 

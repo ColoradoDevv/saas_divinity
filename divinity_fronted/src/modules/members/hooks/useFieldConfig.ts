@@ -15,3 +15,11 @@ export const useUpdateFieldConfig = () => {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['members', 'field-config'] }); },
   });
 };
+
+export const useApplyRecommendedFieldConfig = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => memberService.applyRecommendedFieldConfig(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['members', 'field-config'] }); },
+  });
+};

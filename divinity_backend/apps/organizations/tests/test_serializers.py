@@ -58,9 +58,30 @@ class TestCreateOrganizationSerializer:
 
     def test_enabled_modules_valid_choices(self):
         s = CreateOrganizationSerializer(
-            data=self._valid_data(enabled_modules=['clients', 'workers', 'payments'])
+            data=self._valid_data(enabled_modules=['members', 'workers', 'payments'])
         )
         assert s.is_valid(), s.errors
+
+    def test_enabled_modules_invalid_for_chosen_business_type(self):
+        s = CreateOrganizationSerializer(
+            data=self._valid_data(business_type='gym', enabled_modules=['not_a_real_module'])
+        )
+        assert not s.is_valid()
+        assert 'enabled_modules' in s.errors
+
+    def test_business_type_defaults_to_generic(self):
+        s = CreateOrganizationSerializer(data=self._valid_data())
+        assert s.is_valid(), s.errors
+        assert s.validated_data['business_type'] == 'generic'
+
+    def test_business_type_accepts_gym(self):
+        s = CreateOrganizationSerializer(data=self._valid_data(business_type='gym', enabled_modules=['members']))
+        assert s.is_valid(), s.errors
+
+    def test_business_type_rejects_unknown_vertical(self):
+        s = CreateOrganizationSerializer(data=self._valid_data(business_type='not_a_vertical'))
+        assert not s.is_valid()
+        assert 'business_type' in s.errors
 
     def test_optional_name_fields_have_defaults(self):
         s = CreateOrganizationSerializer(data=self._valid_data())
@@ -102,17 +123,16 @@ class TestPaymentUpdateSerializer:
 
 
 class TestOnboardingSerializer:
+    """enabled_modules ya no se valida contra un catálogo estático aquí: la vista
+    (OnboardingCompleteView) la valida contra el catálogo del business_type de la
+    organización — ver TestOnboardingCompleteView en test_views.py."""
+
     def test_all_fields_optional(self):
         s = OnboardingSerializer(data={})
         assert s.is_valid(), s.errors
 
-    def test_invalid_module_choice(self):
-        s = OnboardingSerializer(data={'enabled_modules': ['invalid']})
-        assert not s.is_valid()
-        assert 'enabled_modules' in s.errors
-
-    def test_valid_module_choices(self):
-        s = OnboardingSerializer(data={'enabled_modules': ['clients', 'attendance']})
+    def test_enabled_modules_accepts_any_string_list(self):
+        s = OnboardingSerializer(data={'enabled_modules': ['members', 'attendance']})
         assert s.is_valid(), s.errors
 
     def test_primary_color_optional(self):

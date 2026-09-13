@@ -27,11 +27,13 @@ export interface Organization {
   name: string;
   slug: string;
   plan: string;
+  business_type: string;
   enabled_modules: string[];
   is_active: boolean;
   onboarding_completed: boolean;
   primary_color: string;
   logo_url: string;
+  currency: string;
 }
 
 export interface MembershipResponse {
@@ -39,7 +41,7 @@ export interface MembershipResponse {
   organization: Organization;
   /** Para usuarios staff: módulos que pueden ver. null = sin restricción (admin/manager). */
   allowed_modules: string[] | null;
-  /** Permisos granulares por módulo para staff: {"clients":["view","create"]}. null = sin restricción. */
+  /** Permisos granulares por módulo para staff: {"members":["view","create"]}. null = sin restricción. */
   module_permissions: Record<string, string[]> | null;
   /** Cargo del trabajador (solo para staff). */
   position: string | null;

@@ -62,7 +62,9 @@ class CreateMemberService:
             )
 
         photo_url = dto.standard_fields.get('photo', '')
-        member_code = secrets.token_hex(5).upper() if photo_url else ''
+        # Todo miembro necesita member_code para el check-in por código/QR,
+        # tenga foto o no.
+        member_code = secrets.token_hex(5).upper()
 
         member = Member(
             id=None,
@@ -79,6 +81,7 @@ class CreateMemberService:
             custom_fields=dto.custom_fields,
             photo_url=photo_url,
             member_code=member_code,
+            face_descriptor=dto.face_descriptor,
         )
         return self.repository.save(member)
 
@@ -103,7 +106,7 @@ class UpdateMemberService:
 
         new_standard = dto.standard_fields if dto.standard_fields is not None else member.standard_fields
         new_photo_url = new_standard.get('photo', member.photo_url)
-        member_code = member.member_code or (secrets.token_hex(5).upper() if new_photo_url else '')
+        member_code = member.member_code or secrets.token_hex(5).upper()
 
         updated = dataclasses.replace(
             member,
@@ -115,6 +118,7 @@ class UpdateMemberService:
             custom_fields=(dto.custom_fields if dto.custom_fields is not None else member.custom_fields),
             photo_url=new_photo_url,
             member_code=member_code,
+            face_descriptor=(dto.face_descriptor if dto.face_descriptor is not None else member.face_descriptor),
         )
         return self.repository.save(updated)
 

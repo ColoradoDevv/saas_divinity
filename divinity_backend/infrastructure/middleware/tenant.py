@@ -113,11 +113,11 @@ class TenantMiddleware:
 
 class RequireModule(BasePermission):
     """
-    Uso: permission_classes = [IsAuthenticated, RequireModule('clients')]
+    Uso: permission_classes = [IsAuthenticated, RequireModule('members')]
 
     Acepta también una subclase para inyectar el módulo como atributo de clase:
-        class ClientsModuleEnabled(RequireModule):
-            module = 'clients'
+        class MembersModuleEnabled(RequireModule):
+            module = 'members'
     """
     module: str = ''
 

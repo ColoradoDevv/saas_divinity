@@ -1,5 +1,13 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
+import { useOrgStore } from '@/app/store/org';
+import { PAYMENT_METHOD_LABELS } from '@/modules/billing/constants';
+import { usePlans } from '@/modules/billing/hooks/useBilling';
+import { billingService } from '@/modules/billing/services/billingService';
+import type { PaymentMethod } from '@/modules/billing/types';
+import { useCurrencyFormatter } from '@/shared/hooks/useCurrencyFormatter';
+import { useToast } from '@/shared/hooks/useToast';
 import {
   md3BodyMediumClass,
   md3FilledButtonClass,
@@ -24,6 +32,23 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
   const { data: customFields = [] } = useCustomFields();
   const createMember = useCreateMember();
   const updateMember = useUpdateMember();
+  const showToast = useToast();
+  const qc = useQueryClient();
+  const formatMoney = useCurrencyFormatter();
+
+  const organization = useOrgStore((state) => state.organization);
+  const allowedModules = useOrgStore((state) => state.allowedModules);
+  const activeModules = allowedModules !== null ? allowedModules : (organization?.enabled_modules ?? []);
+  const billingModuleActive = activeModules.includes('payments');
+  const showPlanStep = !editing && billingModuleActive;
+
+  const { data: plans = [] } = usePlans(true, showPlanStep);
+
+  const steps = showPlanStep
+    ? (['Datos básicos', 'Datos adicionales', 'Foto', 'Plan de membresía'] as const)
+    : (['Datos básicos', 'Datos adicionales', 'Foto'] as const);
+  const [stepIndex, setStepIndex] = useState(0);
+  const currentStep = steps[stepIndex];
 
   const enabledStandard = fieldConfigs.filter((c) => c.is_enabled);
   const enabledCustom = customFields.filter((c) => c.is_enabled);
@@ -48,39 +73,104 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(
     editing?.standard_fields?.photo ?? null,
   );
+  const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(
+    editing?.face_descriptor ?? null,
+  );
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handlePhotoConfirm = (dataUrl: string) => {
+  // Paso 4 — plan de membresía (opcional, solo al crear)
+  const [selectedPlanId, setSelectedPlanId] = useState<number | ''>('');
+  const [method, setMethod] = useState<PaymentMethod>('cash');
+  const [amount, setAmount] = useState('');
+
+  const handlePhotoConfirm = (dataUrl: string, descriptor: number[] | null) => {
     setCapturedPhoto(dataUrl);
     setStandardValues((prev) => ({ ...prev, photo: dataUrl }));
+    setFaceDescriptor(descriptor);
     setShowPhotoModal(false);
   };
 
-  const handleSubmit = async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    setError('');
-
-    if (photoConfig && photoRequired && !capturedPhoto) {
-      setError('La foto del miembro es obligatoria.');
-      return;
+  const validateStep = (step: (typeof steps)[number]): string | null => {
+    if (step === 'Datos básicos') {
+      if (!fixed.first_name.trim()) return 'El nombre es obligatorio.';
+      if (!fixed.last_name.trim()) return 'El apellido es obligatorio.';
+      if (!fixed.email.trim()) return 'El correo electrónico es obligatorio.';
+      return null;
     }
+    if (step === 'Datos adicionales') {
+      for (const cfg of enabledStandard.filter((c) => c.field_name !== 'photo' && c.is_required)) {
+        if (!(standardValues[cfg.field_name] ?? '').trim()) {
+          return `"${cfg.label || cfg.field_name}" es obligatorio.`;
+        }
+      }
+      for (const cf of enabledCustom.filter((c) => c.is_required)) {
+        if (!(customValues[cf.name] ?? '').trim()) {
+          return `"${cf.label}" es obligatorio.`;
+        }
+      }
+      return null;
+    }
+    if (step === 'Foto') {
+      if (photoConfig && photoRequired && !capturedPhoto) {
+        return 'La foto del miembro es obligatoria.';
+      }
+      return null;
+    }
+    return null;
+  };
+
+  const goNext = () => {
+    const err = validateStep(currentStep);
+    if (err) { setError(err); return; }
+    setError('');
+    setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+  };
+
+  const goBack = () => {
+    setError('');
+    setStepIndex((i) => Math.max(i - 1, 0));
+  };
+
+  const handleFinalSubmit = async () => {
+    const err = validateStep(currentStep);
+    if (err) { setError(err); return; }
+    setError('');
+    setSubmitting(true);
 
     const payload: CreateMemberData = {
       ...fixed,
       standard_fields: standardValues,
       custom_fields: customValues,
+      face_descriptor: faceDescriptor,
     };
 
     try {
       if (editing) {
         await updateMember.mutateAsync({ id: editing.id, data: payload });
+        showToast('Cambios guardados.');
       } else {
-        await createMember.mutateAsync(payload);
+        const created = await createMember.mutateAsync(payload);
+        if (selectedPlanId !== '') {
+          await billingService.renewMembership({
+            member_id: created.id,
+            plan_id: selectedPlanId,
+            method,
+            amount: amount || undefined,
+          });
+          qc.invalidateQueries({ queryKey: ['billing', 'expiring'] });
+          qc.invalidateQueries({ queryKey: ['billing', 'summary'] });
+          showToast('Miembro creado y plan asignado.');
+        } else {
+          showToast('Miembro creado correctamente.');
+        }
       }
       onClose();
     } catch {
       setError('Error al guardar el miembro. Verifica los datos e intenta de nuevo.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -95,7 +185,6 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
     if (fieldType === 'select' && options) {
       return (
         <select
-          required={required}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={`${md3TextFieldClass} appearance-none`}
@@ -124,15 +213,16 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
     return (
       <input
         type={inputType}
-        required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={md3TextFieldClass}
+        {...(required ? { 'aria-required': true } : {})}
       />
     );
   };
 
-  const isPending = createMember.isPending || updateMember.isPending;
+  const isLastStep = stepIndex === steps.length - 1;
+  const selectedPlan = plans.find((p) => p.id === selectedPlanId);
 
   return (
     <>
@@ -146,7 +236,7 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
         <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[28px] bg-surface shadow-2xl">
           <div className="p-6 sm:p-8">
-            <div className="mb-6 flex items-center justify-between gap-4">
+            <div className="mb-5 flex items-center justify-between gap-4">
               <h3 className={md3TitleMediumClass}>
                 {editing ? `Editar — ${editing.full_name}` : 'Nuevo miembro'}
               </h3>
@@ -158,60 +248,125 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Campos fijos */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={md3InputLabelClass}>Nombre *</label>
-                  <input required className={md3TextFieldClass} value={fixed.first_name}
-                    onChange={(e) => setFixed((p) => ({ ...p, first_name: e.target.value }))} />
+            {/* Indicador de progreso */}
+            <div className="mb-2 flex items-center gap-2">
+              {steps.map((label, i) => (
+                <div key={label} className="flex flex-1 items-center gap-2">
+                  <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                    i < stepIndex
+                      ? 'bg-primary text-on-primary'
+                      : i === stepIndex
+                        ? 'border-2 border-primary text-primary'
+                        : 'bg-surface-container text-on-surface-variant'
+                  }`}>
+                    {i < stepIndex ? (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    ) : i + 1}
+                  </div>
+                  {i < steps.length - 1 && (
+                    <div className={`h-0.5 flex-1 transition-colors ${i < stepIndex ? 'bg-primary' : 'bg-outline-variant'}`} />
+                  )}
                 </div>
-                <div>
-                  <label className={md3InputLabelClass}>Apellido *</label>
-                  <input required className={md3TextFieldClass} value={fixed.last_name}
-                    onChange={(e) => setFixed((p) => ({ ...p, last_name: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={md3InputLabelClass}>Correo electrónico *</label>
-                  <input required type="email" className={md3TextFieldClass} value={fixed.email}
-                    onChange={(e) => setFixed((p) => ({ ...p, email: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={md3InputLabelClass}>Teléfono</label>
-                  <input type="tel" className={md3TextFieldClass} value={fixed.phone}
-                    onChange={(e) => setFixed((p) => ({ ...p, phone: e.target.value }))} />
-                </div>
-              </div>
+              ))}
+            </div>
+            <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
+              Paso {stepIndex + 1} de {steps.length} — {currentStep}
+            </p>
 
-              {/* Campos estándar habilitados (excluye 'photo' — se maneja aparte) */}
-              {enabledStandard.filter((c) => c.field_name !== 'photo').length > 0 && (
-                <div className="space-y-4 rounded-[16px] border border-outline-variant p-4">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
-                    Campos adicionales
-                  </p>
-                  {enabledStandard
-                    .filter((c) => c.field_name !== 'photo')
-                    .map((cfg) => (
-                      <div key={cfg.field_name}>
-                        <label className={md3InputLabelClass}>
-                          {cfg.label || cfg.field_name}{cfg.is_required ? ' *' : ''}
-                        </label>
-                        <input
-                          type={cfg.field_name === 'birth_date' ? 'date' : 'text'}
-                          required={cfg.is_required}
-                          className={md3TextFieldClass}
-                          value={standardValues[cfg.field_name] ?? ''}
-                          onChange={(e) =>
-                            setStandardValues((p) => ({ ...p, [cfg.field_name]: e.target.value }))
-                          }
-                        />
-                      </div>
-                    ))}
+            <div className="space-y-5">
+              {/* Paso 1: Datos básicos */}
+              {currentStep === 'Datos básicos' && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={md3InputLabelClass}>Nombre *</label>
+                    <input className={md3TextFieldClass} value={fixed.first_name}
+                      onChange={(e) => setFixed((p) => ({ ...p, first_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={md3InputLabelClass}>Apellido *</label>
+                    <input className={md3TextFieldClass} value={fixed.last_name}
+                      onChange={(e) => setFixed((p) => ({ ...p, last_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={md3InputLabelClass}>Correo electrónico *</label>
+                    <input type="email" className={md3TextFieldClass} value={fixed.email}
+                      onChange={(e) => setFixed((p) => ({ ...p, email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={md3InputLabelClass}>Teléfono</label>
+                    <input type="tel" className={md3TextFieldClass} value={fixed.phone}
+                      onChange={(e) => setFixed((p) => ({ ...p, phone: e.target.value }))} />
+                  </div>
                 </div>
               )}
 
-              {/* Foto del miembro — siempre visible */}
-              {(
+              {/* Paso 2: Datos adicionales (estándar + personalizados) */}
+              {currentStep === 'Datos adicionales' && (
+                <>
+                  {enabledStandard.filter((c) => c.field_name !== 'photo').length === 0
+                    && enabledCustom.length === 0 ? (
+                    <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+                      Tu organización no tiene campos adicionales habilitados. Puedes activarlos en
+                      Configuración → Campos de miembros.
+                    </p>
+                  ) : (
+                    <>
+                      {enabledStandard.filter((c) => c.field_name !== 'photo').length > 0 && (
+                        <div className="space-y-4 rounded-[16px] border border-outline-variant p-4">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
+                            Campos estándar
+                          </p>
+                          {enabledStandard
+                            .filter((c) => c.field_name !== 'photo')
+                            .map((cfg) => (
+                              <div key={cfg.field_name}>
+                                <label className={md3InputLabelClass}>
+                                  {cfg.label || cfg.field_name}{cfg.is_required ? ' *' : ''}
+                                </label>
+                                <input
+                                  type={cfg.field_name === 'birth_date' ? 'date' : 'text'}
+                                  className={md3TextFieldClass}
+                                  value={standardValues[cfg.field_name] ?? ''}
+                                  onChange={(e) =>
+                                    setStandardValues((p) => ({ ...p, [cfg.field_name]: e.target.value }))
+                                  }
+                                />
+                              </div>
+                            ))}
+                        </div>
+                      )}
+
+                      {enabledCustom.length > 0 && (
+                        <div className="space-y-4 rounded-[16px] border border-outline-variant p-4">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
+                            Campos personalizados
+                          </p>
+                          {enabledCustom.map((cf) => (
+                            <div key={cf.name}>
+                              {cf.field_type !== 'boolean' && (
+                                <label className={md3InputLabelClass}>
+                                  {cf.label}{cf.is_required ? ' *' : ''}
+                                </label>
+                              )}
+                              {renderCustomInput(
+                                cf.field_type,
+                                cf.label,
+                                customValues[cf.name] ?? '',
+                                (v) => setCustomValues((p) => ({ ...p, [cf.name]: v })),
+                                cf.options,
+                                cf.is_required,
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Paso 3: Foto */}
+              {currentStep === 'Foto' && (
                 <div className="rounded-[16px] border border-outline-variant p-4">
                   <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
                     Foto del miembro{photoRequired ? ' *' : ''}
@@ -266,29 +421,54 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
                 </div>
               )}
 
-              {/* Campos custom habilitados */}
-              {enabledCustom.length > 0 && (
-                <div className="space-y-4 rounded-[16px] border border-outline-variant p-4">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
-                    Campos personalizados
+              {/* Paso 4: Plan de membresía (opcional, solo al crear) */}
+              {currentStep === 'Plan de membresía' && (
+                <div className="space-y-4">
+                  <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+                    Puedes asignar un plan ahora mismo, o hacerlo después desde la ficha del miembro.
                   </p>
-                  {enabledCustom.map((cf) => (
-                    <div key={cf.name}>
-                      {cf.field_type !== 'boolean' && (
-                        <label className={md3InputLabelClass}>
-                          {cf.label}{cf.is_required ? ' *' : ''}
-                        </label>
-                      )}
-                      {renderCustomInput(
-                        cf.field_type,
-                        cf.label,
-                        customValues[cf.name] ?? '',
-                        (v) => setCustomValues((p) => ({ ...p, [cf.name]: v })),
-                        cf.options,
-                        cf.is_required,
-                      )}
-                    </div>
-                  ))}
+                  <div>
+                    <label className={md3InputLabelClass}>Plan</label>
+                    <select
+                      className={`${md3TextFieldClass} appearance-none`}
+                      value={selectedPlanId}
+                      onChange={(e) => setSelectedPlanId(e.target.value ? Number(e.target.value) : '')}
+                    >
+                      <option value="">Omitir por ahora</option>
+                      {plans.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name} — {formatMoney(p.price)}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedPlanId !== '' && (
+                    <>
+                      <div>
+                        <label className={md3InputLabelClass}>Método de pago</label>
+                        <select
+                          className={`${md3TextFieldClass} appearance-none`}
+                          value={method}
+                          onChange={(e) => setMethod(e.target.value as PaymentMethod)}
+                        >
+                          {Object.entries(PAYMENT_METHOD_LABELS).map(([val, lbl]) => (
+                            <option key={val} value={val}>{lbl}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={md3InputLabelClass}>Monto</label>
+                        <input
+                          className={md3TextFieldClass}
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          placeholder={selectedPlan ? formatMoney(selectedPlan.price) : ''}
+                        />
+                        <p className={`mt-1 text-on-surface-variant ${md3BodyMediumClass}`}>
+                          Déjalo vacío para usar el precio del plan.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -297,14 +477,31 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
               )}
 
               <div className="flex gap-3 pt-2">
-                <button type="submit" className={`${md3FilledButtonClass} flex-1`} disabled={isPending}>
-                  {isPending ? 'Guardando...' : editing ? 'Guardar cambios' : 'Agregar miembro'}
-                </button>
+                {stepIndex > 0 && (
+                  <button type="button" onClick={goBack} className={md3OutlinedButtonClass}>
+                    Atrás
+                  </button>
+                )}
                 <button type="button" onClick={onClose} className={md3OutlinedButtonClass}>
                   Cancelar
                 </button>
+                <div className="flex-1" />
+                {isLastStep ? (
+                  <button
+                    type="button"
+                    onClick={handleFinalSubmit}
+                    disabled={submitting}
+                    className={md3FilledButtonClass}
+                  >
+                    {submitting ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear miembro'}
+                  </button>
+                ) : (
+                  <button type="button" onClick={goNext} className={md3FilledButtonClass}>
+                    Siguiente
+                  </button>
+                )}
               </div>
-            </form>
+            </div>
           </div>
         </div>
       </div>

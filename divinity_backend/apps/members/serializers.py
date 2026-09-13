@@ -23,6 +23,8 @@ class MemberReadSerializer(serializers.Serializer):
     custom_fields = serializers.DictField(read_only=True)
     photo_url = serializers.CharField(read_only=True)
     member_code = serializers.CharField(read_only=True)
+    face_descriptor = serializers.ListField(child=serializers.FloatField(), read_only=True, allow_null=True)
+    has_portal_access = serializers.BooleanField(read_only=True)
 
 
 class MemberWriteSerializer(serializers.Serializer):
@@ -32,6 +34,9 @@ class MemberWriteSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=30, required=False, allow_blank=True, default='')
     standard_fields = serializers.DictField(required=False, default=dict)
     custom_fields = serializers.DictField(required=False, default=dict)
+    face_descriptor = serializers.ListField(
+        child=serializers.FloatField(), required=False, allow_null=True, default=None,
+    )
 
     def validate_standard_fields(self, value: dict) -> dict:
         invalid = [k for k in value if k not in STANDARD_FIELD_KEYS]
@@ -50,6 +55,7 @@ class MemberUpdateSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
     standard_fields = serializers.DictField(required=False)
     custom_fields = serializers.DictField(required=False)
+    face_descriptor = serializers.ListField(child=serializers.FloatField(), required=False, allow_null=True)
 
     def validate_standard_fields(self, value: dict) -> dict:
         invalid = [k for k in value if k not in STANDARD_FIELD_KEYS]

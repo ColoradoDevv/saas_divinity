@@ -13,6 +13,7 @@ class CreateMemberDTO:
     created_by_id: int | None = None
     standard_fields: dict = field(default_factory=dict)
     custom_fields: dict = field(default_factory=dict)
+    face_descriptor: list | None = None
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class UpdateMemberDTO:
     phone: str | None = None
     standard_fields: dict | None = None
     custom_fields: dict | None = None
+    face_descriptor: list | None = None
 
 
 @dataclass(frozen=True)

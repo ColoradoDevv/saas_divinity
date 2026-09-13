@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     AcceptInviteView,
+    AddonCatalogView,
     InviteView,
     MembershipListView,
     OnboardingCompleteView,
@@ -12,9 +13,14 @@ from .views import (
     SuperOrganizationDetailView,
     SuperOrganizationListCreateView,
     SuperPaymentUpdateView,
+    VerticalCatalogView,
 )
 
 urlpatterns = [
+    # Catálogo de verticales/módulos
+    path('verticals/', VerticalCatalogView.as_view(), name='org-verticals'),
+    path('addons/', AddonCatalogView.as_view(), name='org-addons'),
+
     # Registro público
     path('register/', RegisterOrganizationView.as_view(), name='org-register'),
 

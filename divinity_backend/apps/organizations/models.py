@@ -3,6 +3,9 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.db import models
 
+from domain.organizations.currency import CURRENCY_CHOICES, DEFAULT_CURRENCY
+from domain.organizations.verticals import BUSINESS_TYPE_CHOICES, BUSINESS_TYPE_GENERIC
+
 
 class OrganizationModel(models.Model):
     PLAN_CHOICES = [
@@ -19,9 +22,13 @@ class OrganizationModel(models.Model):
     name = models.CharField(max_length=120)
     slug = models.SlugField(unique=True, max_length=80)
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='pro')
+    business_type = models.CharField(
+        max_length=20, choices=BUSINESS_TYPE_CHOICES, default=BUSINESS_TYPE_GENERIC,
+        help_text='Servicio/vertical contratado: determina el catálogo de módulos disponible.',
+    )
     enabled_modules = models.JSONField(
         default=list,
-        help_text='Claves de módulos habilitados: clients, payments, attendance, reports, workers',
+        help_text='Claves de módulos habilitados, acotadas al catálogo del business_type.',
     )
     is_active = models.BooleanField(default=True)
 
@@ -36,6 +43,10 @@ class OrganizationModel(models.Model):
     onboarding_completed = models.BooleanField(default=False)
     primary_color = models.CharField(max_length=7, blank=True, default='')
     logo_url = models.TextField(blank=True, default='')
+
+    # Moneda usada en toda la app para mostrar montos (planes, cuotas, reportes).
+    # Configurable por el admin de la empresa en Configuración — COP por defecto.
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default=DEFAULT_CURRENCY)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

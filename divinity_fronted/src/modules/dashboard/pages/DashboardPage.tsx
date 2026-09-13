@@ -1,16 +1,23 @@
 import { type ReactNode, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '@/app/store/auth';
 import { useOrgStore } from '@/app/store/org';
+import { SUBSCRIPTION_STATUS_CONFIG } from '@/modules/billing/constants';
+import { useDashboardSummary, useExpiringSubscriptions } from '@/modules/billing/hooks/useBilling';
+import { MemberFormModal } from '@/modules/members/components/MemberFormModal';
+import { useMembers } from '@/modules/members/hooks/useMembers';
 import { useTasks, useUpdateTask } from '@/modules/workers/hooks/useWorkers';
 import type { Task } from '@/modules/workers/types';
+import { useCurrencyFormatter } from '@/shared/hooks/useCurrencyFormatter';
+import { useModulePermissions } from '@/shared/hooks/useModulePermission';
 import {
   md3BodyMediumClass,
   md3HeadlineMediumClass,
   md3BodyLargeClass,
   md3OverlineClass,
   md3SurfaceClass,
+  md3TextFieldClass,
   md3TitleMediumClass,
 } from '@/shared/ui/material';
 
@@ -230,6 +237,200 @@ const MyTasksPanel = () => {
   );
 };
 
+// ─── Vencimientos próximos (solo gimnasio) ────────────────────────────────────
+
+const ExpiringMembershipsPanel = () => {
+  const { data: subscriptions = [], isLoading } = useExpiringSubscriptions(7);
+  const visible = subscriptions.slice(0, 5);
+
+  return (
+    <section>
+      <div className="mb-3 flex items-center gap-3 px-1">
+        <h2 className={`font-semibold text-on-surface ${md3TitleMediumClass}`}>Vencimientos próximos</h2>
+        {!isLoading && subscriptions.length > 0 && (
+          <span className="rounded-full bg-error text-on-error px-2.5 py-0.5 text-xs font-bold">
+            {subscriptions.length}
+          </span>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2.5">
+          {[1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-2xl bg-surface-container" />)}
+        </div>
+      ) : subscriptions.length === 0 ? (
+        <div className={`${md3SurfaceClass} p-6 text-center`}>
+          <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+            Ningún miembro vence en los próximos 7 días.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {visible.map((s) => {
+            const cfg = SUBSCRIPTION_STATUS_CONFIG[s.status];
+            return (
+              <Link key={s.id} to={`/members/${s.member_id}`}
+                className="flex items-center justify-between rounded-2xl border border-outline-variant/60 bg-surface px-4 py-3 transition hover:bg-on-surface/4">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-on-surface">{s.member_name}</p>
+                  <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>{s.plan_name}</p>
+                </div>
+                <span className={`ml-3 flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${cfg.cls}`}>
+                  {cfg.label}
+                </span>
+              </Link>
+            );
+          })}
+          {subscriptions.length > visible.length && (
+            <Link to="/payments" className="block rounded-2xl border border-dashed border-outline-variant py-2.5 text-center text-xs font-medium text-on-surface-variant transition hover:bg-on-surface/4">
+              Ver los {subscriptions.length} en Pagos
+            </Link>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
+// ─── Resumen del día (solo gimnasio, admin/manager) ───────────────────────────
+
+const DailySummaryPanel = () => {
+  const { data, isLoading } = useDashboardSummary();
+  const formatMoney = useCurrencyFormatter();
+
+  const tiles = [
+    { label: 'Ingresos hoy', value: data ? formatMoney(data.revenue_today) : null },
+    { label: 'Check-ins hoy', value: data ? String(data.checkins_today) : null },
+    { label: 'Miembros nuevos (7d)', value: data ? String(data.new_members_7d) : null },
+    { label: 'Miembros activos', value: data ? String(data.active_members) : null },
+  ];
+
+  return (
+    <section>
+      <h2 className="mb-3 px-1 text-sm font-semibold text-on-surface">Resumen del día</h2>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {tiles.map((t) => (
+          <div key={t.label} className={`${md3SurfaceClass} p-4`}>
+            <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>{t.label}</p>
+            <p className="mt-1 text-2xl font-semibold text-on-surface">
+              {isLoading || t.value === null ? '···' : t.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+// ─── Acciones rápidas de mostrador (solo gimnasio) ─────────────────────────────
+
+const QuickActionsPanel = () => {
+  const navigate = useNavigate();
+  const { canCreate: canCreateMember } = useModulePermissions('members');
+  const allowedModules = useOrgStore((state) => state.allowedModules);
+  const organization = useOrgStore((state) => state.organization);
+  const enabledModules = allowedModules !== null ? allowedModules : (organization?.enabled_modules ?? []);
+
+  const [showMemberForm, setShowMemberForm] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [search, setSearch] = useState('');
+  const { data } = useMembers(1, search, '');
+  const results = search.trim() ? (data?.results ?? []) : [];
+
+  const showCheckIn = enabledModules.includes('attendance');
+  const showSearchAction = enabledModules.includes('payments');
+
+  if (!canCreateMember && !showCheckIn && !showSearchAction) return null;
+
+  return (
+    <section>
+      {showMemberForm && <MemberFormModal onClose={() => setShowMemberForm(false)} />}
+
+      <h2 className="mb-3 px-1 text-sm font-semibold text-on-surface">Acciones rápidas</h2>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {canCreateMember && (
+          <button
+            type="button"
+            onClick={() => setShowMemberForm(true)}
+            className={`${md3SurfaceClass} flex items-center gap-3 p-4 text-left transition hover:-translate-y-0.5 cursor-pointer hover:shadow-md`}
+          >
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-container text-primary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
+              </svg>
+            </span>
+            <span>
+              <p className="font-semibold text-on-surface ">Registrar miembro</p>
+              <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>Alta rápida sin salir del panel</p>
+            </span>
+          </button>
+        )}
+
+        {showCheckIn && (
+          <Link
+            to="/attendance"
+            className={`${md3SurfaceClass} flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-md`}
+          >
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-secondary-container text-secondary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" /><path d="m9 16 2 2 4-4" />
+              </svg>
+            </span>
+            <span>
+              <p className="font-semibold text-on-surface">Check-in</p>
+              <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>Código, búsqueda o rostro</p>
+            </span>
+          </Link>
+        )}
+
+        {showSearchAction && (
+          <div className={`${md3SurfaceClass} cursor-pointer p-4 hover:-translate-y-0.5 hover:shadow-md`}>
+            {!showSearch ? (
+              <button type="button" onClick={() => setShowSearch(true)} className="flex cursor-pointer w-full items-center gap-3 text-left ">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-tertiary-container text-tertiary">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <span>
+                  <p className="font-semibold text-on-surface">Buscar y cobrar</p>
+                  <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>Encuentra un miembro para renovar</p>
+                </span>
+              </button>
+            ) : (
+              <div>
+                <input
+                  autoFocus
+                  className={md3TextFieldClass}
+                  placeholder="Nombre o correo..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                {results.length > 0 && (
+                  <div className="mt-2 max-h-48 divide-y divide-outline-variant/40 overflow-y-auto rounded-xl border border-outline-variant">
+                    {results.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => navigate(`/members/${m.id}`)}
+                        className="flex w-full items-center justify-between p-2.5 text-left transition hover:bg-on-surface/4"
+                      >
+                        <span className="font-medium text-on-surface">{m.full_name}</span>
+                        <span className={`text-on-surface-variant ${md3BodyMediumClass}`}>{m.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
 // ─── Shortcuts catalog ────────────────────────────────────────────────────────
 
 interface ShortcutDef {
@@ -246,7 +447,7 @@ interface ShortcutDef {
 const SHORTCUTS_CATALOG: ShortcutDef[] = [
   {
     key: 'members-list',
-    module: 'clients',
+    module: 'members',
     to: '/members',
     label: 'Miembros',
     description: 'Registra y consulta los miembros de tu negocio',
@@ -291,7 +492,6 @@ const SHORTCUTS_CATALOG: ShortcutDef[] = [
     label: 'Pagos',
     description: 'Controla cobros, cuotas y facturación',
     iconBg: 'bg-tertiary-container text-tertiary',
-    comingSoon: true,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" />
@@ -305,7 +505,6 @@ const SHORTCUTS_CATALOG: ShortcutDef[] = [
     label: 'Asistencia',
     description: 'Registra entradas, salidas y horarios',
     iconBg: 'bg-surface-container-high text-on-surface-variant',
-    comingSoon: true,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" />
@@ -321,11 +520,24 @@ const SHORTCUTS_CATALOG: ShortcutDef[] = [
     label: 'Reportes',
     description: 'Estadísticas e informes del rendimiento',
     iconBg: 'bg-surface-container-high text-on-surface-variant',
-    comingSoon: true,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" />
         <line x1="6" y1="20" x2="6" y2="14" /><line x1="2" y1="20" x2="22" y2="20" />
+      </svg>
+    ),
+  },
+  {
+    key: 'classes-list',
+    module: 'classes',
+    to: '/classes',
+    label: 'Clases',
+    description: 'Calendario semanal de clases y cupos',
+    iconBg: 'bg-primary-container text-primary',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
       </svg>
     ),
   },
@@ -424,8 +636,21 @@ export const DashboardPage = () => {
         </div>
       </section>
 
+      {/* ── Acciones rápidas de mostrador — solo gimnasio ── */}
+      {organization?.business_type === 'gym' && <QuickActionsPanel />}
+
+      {/* ── Resumen del día — solo gimnasio, admin/manager ── */}
+      {organization?.business_type === 'gym' && activeModules.includes('payments') && role !== 'staff' && (
+        <DailySummaryPanel />
+      )}
+
       {/* ── My Tasks — only for staff workers ── */}
       {role === 'staff' && <MyTasksPanel />}
+
+      {/* ── Vencimientos próximos — solo gimnasio, admin/manager ── */}
+      {organization?.business_type === 'gym' && activeModules.includes('payments') && role !== 'staff' && (
+        <ExpiringMembershipsPanel />
+      )}
 
       {/* ── Quick access ── */}
       <section>

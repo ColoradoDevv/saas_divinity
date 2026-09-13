@@ -91,13 +91,13 @@ class TestWorkerListCreateView:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_post_no_allowed_modules_inherits_org(self, admin_client, org):
-        org.enabled_modules = ['workers', 'clients']
+        org.enabled_modules = ['workers', 'members']
         org.save()
         resp = admin_client.post(self.url, _worker_payload(
             email='inh@ex.com', allowed_modules=[],
         ), format='json')
         assert resp.status_code == status.HTTP_201_CREATED
-        assert set(resp.data['allowed_modules']) == {'workers', 'clients'}
+        assert set(resp.data['allowed_modules']) == {'workers', 'members'}
 
     def test_post_explicit_allowed_modules(self, admin_client):
         resp = admin_client.post(self.url, _worker_payload(

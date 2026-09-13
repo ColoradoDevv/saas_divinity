@@ -20,6 +20,8 @@ class Member:
     custom_fields: dict = field(default_factory=dict)
     photo_url: str = ''
     member_code: str = ''
+    face_descriptor: list | None = None
+    has_portal_access: bool = False
 
     def to_primitives(self) -> dict:
         return {
@@ -38,6 +40,8 @@ class Member:
             'custom_fields': self.custom_fields,
             'photo_url': self.photo_url,
             'member_code': self.member_code,
+            'face_descriptor': self.face_descriptor,
+            'has_portal_access': self.has_portal_access,
         }
 
 

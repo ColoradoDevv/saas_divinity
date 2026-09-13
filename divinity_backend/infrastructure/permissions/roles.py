@@ -7,8 +7,8 @@ y está disponible en request.auth después de que JWTAuthentication corra.
 Uso en ViewSets:
     def get_permissions(self):
         if self.action == 'destroy':
-            return [IsAuthenticated(), ClientsModuleEnabled(), IsAdminOnly()]
-        return [IsAuthenticated(), ClientsModuleEnabled(), IsAdminOrManager()]
+            return [IsAuthenticated(), MembersModuleEnabled(), IsAdminOnly()]
+        return [IsAuthenticated(), MembersModuleEnabled(), IsAdminOrManager()]
 """
 
 from rest_framework.permissions import BasePermission
@@ -48,8 +48,8 @@ def staff_module_action_permission(module_key: str, action: str) -> type[BasePer
         la acción está en worker_module_permissions[module_key]
 
     Uso en ViewSets:
-        CanViewMembers  = staff_module_action_permission('clients', 'view')
-        CanCreateMember = staff_module_action_permission('clients', 'create')
+        CanViewMembers  = staff_module_action_permission('members', 'view')
+        CanCreateMember = staff_module_action_permission('members', 'create')
     """
     class _Permission(BasePermission):
         message = f'No tienes permiso para realizar esta acción en el módulo {module_key}.'

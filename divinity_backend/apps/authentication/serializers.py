@@ -33,11 +33,13 @@ class OrganizationSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
     slug = serializers.CharField(read_only=True)
     plan = serializers.CharField(read_only=True)
+    business_type = serializers.CharField(read_only=True)
     enabled_modules = serializers.ListField(child=serializers.CharField(), read_only=True)
     is_active = serializers.BooleanField(read_only=True)
     onboarding_completed = serializers.BooleanField(read_only=True)
     primary_color = serializers.CharField(read_only=True, allow_blank=True)
     logo_url = serializers.CharField(read_only=True, allow_blank=True)
+    currency = serializers.CharField(read_only=True)
 
 
 class MembershipSerializer(serializers.Serializer):
@@ -47,7 +49,7 @@ class MembershipSerializer(serializers.Serializer):
     allowed_modules = serializers.ListField(
         child=serializers.CharField(), read_only=True, required=False, allow_null=True
     )
-    # Permisos por módulo para staff: {"clients": ["view","create"]}; null para admin/manager
+    # Permisos por módulo para staff: {"members": ["view","create"]}; null para admin/manager
     module_permissions = serializers.DictField(read_only=True, required=False, allow_null=True)
     # Cargo del trabajador (solo para staff)
     position = serializers.CharField(read_only=True, required=False, allow_null=True)

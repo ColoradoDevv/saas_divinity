@@ -17,6 +17,8 @@ export interface Member {
   custom_fields: Record<string, string>;
   photo_url: string;
   member_code: string;
+  face_descriptor: number[] | null;
+  has_portal_access: boolean;
 }
 
 export interface FieldConfig {
@@ -50,6 +52,7 @@ export interface CreateMemberData {
   phone?: string;
   standard_fields?: Record<string, string>;
   custom_fields?: Record<string, string>;
+  face_descriptor?: number[] | null;
 }
 
 export type UpdateMemberData = Partial<CreateMemberData>;

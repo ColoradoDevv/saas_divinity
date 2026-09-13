@@ -38,6 +38,11 @@ export const memberService = {
     await api.delete(`/members/${id}/`);
   },
 
+  async activatePortalAccess(id: number): Promise<{ sent: boolean }> {
+    const response = await api.post(`/members/${id}/portal-access/`);
+    return response.data;
+  },
+
   async getFieldConfig(): Promise<FieldConfig[]> {
     const response = await api.get('/members/field-config/');
     return response.data;
@@ -45,6 +50,11 @@ export const memberService = {
 
   async updateFieldConfigBulk(configs: FieldConfig[]): Promise<FieldConfig[]> {
     const response = await api.post('/members/field-config/bulk/', configs);
+    return response.data;
+  },
+
+  async applyRecommendedFieldConfig(): Promise<{ created: number; field_configs: FieldConfig[] }> {
+    const response = await api.post('/members/field-config/apply-recommended/');
     return response.data;
   },
 

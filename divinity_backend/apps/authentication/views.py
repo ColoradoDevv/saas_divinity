@@ -270,6 +270,8 @@ class SwitchOrgView(APIView):
             onboarding_completed=org.onboarding_completed,
             primary_color=org.primary_color,
             logo_url=org.logo_url,
+            business_type=org.business_type,
+            currency=org.currency,
         )
         auth_user = AuthenticatedUser(
             id=request.user.id,

@@ -42,3 +42,13 @@ export const useDeactivateMember = () => {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); },
   });
 };
+
+export const useActivatePortalAccess = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => memberService.activatePortalAccess(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ['member', id] });
+    },
+  });
+};

@@ -48,6 +48,8 @@ class DjangoORMMemberRepository(MemberRepositoryInterface):
             custom_fields=custom_fields,
             photo_url=model.photo_url,
             member_code=model.member_code,
+            face_descriptor=model.face_descriptor,
+            has_portal_access=model.user_id is not None,
         )
 
     def _save_standard_fields(self, model: MemberModel, standard_fields: dict) -> None:
@@ -93,6 +95,8 @@ class DjangoORMMemberRepository(MemberRepositoryInterface):
                     model.photo_url = member.photo_url
                 if member.member_code:
                     model.member_code = member.member_code
+                if member.face_descriptor is not None:
+                    model.face_descriptor = member.face_descriptor
                 model.save()
             else:
                 model = MemberModel.objects.create(
@@ -105,6 +109,7 @@ class DjangoORMMemberRepository(MemberRepositoryInterface):
                     created_by_id=member.created_by_id,
                     photo_url=member.photo_url,
                     member_code=member.member_code,
+                    face_descriptor=member.face_descriptor,
                 )
         except IntegrityError:
             raise MemberAlreadyExistsError(
@@ -131,6 +136,18 @@ class DjangoORMMemberRepository(MemberRepositoryInterface):
                 'standard_field_values',
                 'custom_field_values__field',
             ).get(email=email, organization_id=organization_id)
+        except MemberModel.DoesNotExist:
+            return None
+        return self._to_entity(model)
+
+    def get_by_code(self, member_code: str, organization_id: int) -> Optional[Member]:
+        if not member_code:
+            return None
+        try:
+            model = MemberModel.objects.prefetch_related(
+                'standard_field_values',
+                'custom_field_values__field',
+            ).get(member_code=member_code, organization_id=organization_id)
         except MemberModel.DoesNotExist:
             return None
         return self._to_entity(model)

@@ -3,50 +3,71 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from apps.organizations.models import OrganizationModel
+from domain.organizations.currency import CURRENCY_CHOICES
+from domain.organizations.verticals import (
+    BUSINESS_TYPE_CHOICES,
+    BUSINESS_TYPE_GENERIC,
+    get_valid_module_keys,
+)
+
+
+def _validate_modules_for_vertical(business_type: str, modules: list) -> None:
+    invalid = set(modules) - get_valid_module_keys(business_type)
+    if invalid:
+        raise serializers.ValidationError({
+            'enabled_modules': (
+                f'Módulos no válidos para el vertical "{business_type}": '
+                f'{", ".join(sorted(invalid))}.'
+            )
+        })
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrganizationModel
         fields = [
-            'id', 'name', 'slug', 'plan', 'enabled_modules',
+            'id', 'name', 'slug', 'plan', 'business_type', 'enabled_modules',
             'is_active', 'onboarding_completed', 'primary_color', 'logo_url',
             'payment_status', 'last_payment_date', 'next_payment_date',
-            'created_at',
+            'currency', 'created_at',
         ]
         read_only_fields = fields
 
 
 class UpdateOrganizationSerializer(serializers.Serializer):
+    """Autoservicio del admin de la empresa. enabled_modules se valida en la
+    vista contra el catálogo del business_type ya asignado a la organización."""
     name = serializers.CharField(max_length=120, required=False)
     enabled_modules = serializers.ListField(child=serializers.CharField(), required=False)
     primary_color = serializers.CharField(max_length=7, required=False, allow_blank=True)
     logo_url = serializers.CharField(required=False, allow_blank=True)
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
 
 class OnboardingSerializer(serializers.Serializer):
+    """enabled_modules se valida en la vista contra el catálogo del
+    business_type ya asignado a la organización (elegido por el superadmin)."""
     name = serializers.CharField(max_length=120, required=False)
     primary_color = serializers.CharField(max_length=7, required=False, allow_blank=True)
     logo_url = serializers.CharField(required=False, allow_blank=True)
-    enabled_modules = serializers.ListField(
-        child=serializers.ChoiceField(choices=['clients', 'payments', 'attendance', 'reports', 'workers']),
-        required=False,
-    )
+    enabled_modules = serializers.ListField(child=serializers.CharField(), required=False)
 
 
 class CreateOrganizationSerializer(serializers.Serializer):
     # Datos de la empresa
     name = serializers.CharField(max_length=120)
     plan = serializers.ChoiceField(choices=['pro', 'enterprise'], default='pro')
-    enabled_modules = serializers.ListField(
-        child=serializers.ChoiceField(choices=['clients', 'payments', 'attendance', 'reports', 'workers']),
-        default=['clients'],
-    )
+    business_type = serializers.ChoiceField(choices=BUSINESS_TYPE_CHOICES, default=BUSINESS_TYPE_GENERIC)
+    enabled_modules = serializers.ListField(child=serializers.CharField(), default=['members'])
     # Datos del usuario admin de la empresa
     admin_email = serializers.EmailField()
     admin_password = serializers.CharField(write_only=True, min_length=8)
     admin_first_name = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
     admin_last_name = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
+
+    def validate(self, data: dict) -> dict:
+        _validate_modules_for_vertical(data['business_type'], data.get('enabled_modules', []))
+        return data
 
 
 class PaymentUpdateSerializer(serializers.Serializer):
@@ -56,14 +77,13 @@ class PaymentUpdateSerializer(serializers.Serializer):
 
 
 class SuperUpdateOrganizationSerializer(serializers.Serializer):
+    """enabled_modules se valida en la vista, ya que depende de si business_type
+    también cambia en el mismo request (recorta a la intersección con el nuevo
+    catálogo cuando el vertical cambia)."""
     name = serializers.CharField(max_length=120, required=False)
     plan = serializers.ChoiceField(choices=['pro', 'enterprise'], required=False)
-    enabled_modules = serializers.ListField(
-        child=serializers.ChoiceField(
-            choices=['clients', 'payments', 'attendance', 'reports', 'workers', 'members']
-        ),
-        required=False,
-    )
+    business_type = serializers.ChoiceField(choices=BUSINESS_TYPE_CHOICES, required=False)
+    enabled_modules = serializers.ListField(child=serializers.CharField(), required=False)
     is_active = serializers.BooleanField(required=False)
     primary_color = serializers.CharField(max_length=7, required=False, allow_blank=True)
     logo_url = serializers.CharField(required=False, allow_blank=True)

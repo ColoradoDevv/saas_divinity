@@ -17,9 +17,18 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.members.defaults import seed_recommended_member_fields
 from domain.authentication.entities import AuthenticatedUser
 from domain.organizations.entities import Membership as MembershipEntity
 from domain.organizations.entities import Organization as OrganizationEntity
+from domain.organizations.verticals import (
+    BUSINESS_TYPE_GENERIC,
+    BUSINESS_TYPE_LABELS,
+    VERTICAL_MODULE_CATALOG,
+    get_addon_catalog,
+    get_grantable_module_keys,
+    get_valid_module_keys,
+)
 from infrastructure.authentication.jwt import SimpleJWTTokenProvider
 
 from .models import InvitationModel, MembershipModel, OrganizationModel
@@ -56,6 +65,41 @@ def _require_org_admin(request) -> int:
     return int(request.auth['organization_id'])
 
 
+# ─── Verticales / catálogo de módulos ─────────────────────────────────────────
+
+class VerticalCatalogView(APIView):
+    """
+    GET /api/organizations/verticals/ — catálogo de módulos disponibles por
+    business_type. Fuente única de verdad para que el superadmin (alta de
+    empresa) y el onboarding de la empresa construyan sus checkboxes de
+    módulos sin duplicar la lista.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        data = {
+            business_type: {
+                'label': BUSINESS_TYPE_LABELS.get(business_type, business_type),
+                'modules': modules,
+            }
+            for business_type, modules in VERTICAL_MODULE_CATALOG.items()
+        }
+        return Response(data)
+
+
+class AddonCatalogView(APIView):
+    """
+    GET /api/organizations/addons/ — catálogo de complementos (superadmin-only,
+    a propósito no es parte de VerticalCatalogView: el self-service de la
+    organización no tiene por qué enterarse de que existen).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        _require_superuser(request)
+        return Response(get_addon_catalog())
+
+
 # ─── Super Admin endpoints ────────────────────────────────────────────────────
 
 class SuperOrganizationListCreateView(APIView):
@@ -73,6 +117,7 @@ class SuperOrganizationListCreateView(APIView):
                 'name': org.name,
                 'slug': org.slug,
                 'plan': org.plan,
+                'business_type': org.business_type,
                 'is_active': org.is_active,
                 'onboarding_completed': org.onboarding_completed,
                 'enabled_modules': org.enabled_modules,
@@ -104,8 +149,12 @@ class SuperOrganizationListCreateView(APIView):
             name=d['name'],
             slug=slug,
             plan=d.get('plan', 'pro'),
-            enabled_modules=d.get('enabled_modules', ['clients']),
+            business_type=d.get('business_type', BUSINESS_TYPE_GENERIC),
+            enabled_modules=d.get('enabled_modules', ['members']),
         )
+
+        if org.business_type == 'gym':
+            seed_recommended_member_fields(org)
 
         if UserModel.objects.filter(email=d['admin_email']).exists():
             raise ValidationError({'admin_email': 'Ya existe una cuenta con ese correo.'})
@@ -179,6 +228,7 @@ class SuperOrganizationDetailView(APIView):
             'name': org.name,
             'slug': org.slug,
             'plan': org.plan,
+            'business_type': org.business_type,
             'is_active': org.is_active,
             'onboarding_completed': org.onboarding_completed,
             'enabled_modules': org.enabled_modules,
@@ -197,9 +247,39 @@ class SuperOrganizationDetailView(APIView):
         org = self._get_org(pk)
         serializer = SuperUpdateOrganizationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        for field, value in serializer.validated_data.items():
+        d = serializer.validated_data
+
+        new_business_type = d.get('business_type', org.business_type)
+        if 'enabled_modules' in d:
+            # get_grantable_module_keys (no get_valid_module_keys): el superadmin
+            # sí puede otorgar complementos (ej. biometric_devices) por organización.
+            invalid = set(d['enabled_modules']) - get_grantable_module_keys(new_business_type)
+            if invalid:
+                raise ValidationError({
+                    'enabled_modules': (
+                        f'Módulos no válidos para el vertical "{new_business_type}": '
+                        f'{", ".join(sorted(invalid))}.'
+                    )
+                })
+        elif 'business_type' in d and new_business_type != org.business_type:
+            # Cambió el vertical sin especificar enabled_modules explícitamente:
+            # recortar a la intersección para no dejar módulos huérfanos. Usa
+            # get_grantable_module_keys (no get_valid_module_keys) para no
+            # perder un complemento ya otorgado (ej. biometric_devices) al
+            # cambiar de vertical.
+            d['enabled_modules'] = sorted(
+                set(org.enabled_modules) & get_grantable_module_keys(new_business_type)
+            )
+
+        became_gym = new_business_type == 'gym' and org.business_type != 'gym'
+
+        for field, value in d.items():
             setattr(org, field, value)
         org.save()
+
+        if became_gym:
+            seed_recommended_member_fields(org)
+
         return Response(OrganizationSerializer(org).data)
 
 
@@ -280,7 +360,19 @@ class OrganizationDetailView(APIView):
         org = self._get_org(request)
         serializer = UpdateOrganizationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        for field, value in serializer.validated_data.items():
+        d = serializer.validated_data
+
+        if 'enabled_modules' in d:
+            invalid = set(d['enabled_modules']) - get_valid_module_keys(org.business_type)
+            if invalid:
+                raise ValidationError({
+                    'enabled_modules': (
+                        f'Módulos no válidos para el vertical "{org.business_type}": '
+                        f'{", ".join(sorted(invalid))}.'
+                    )
+                })
+
+        for field, value in d.items():
             setattr(org, field, value)
         org.save()
         return Response(OrganizationSerializer(org).data)
@@ -341,6 +433,16 @@ class OnboardingCompleteView(APIView):
         except OrganizationModel.DoesNotExist:
             raise NotFound('Organización no encontrada.')
 
+        if 'enabled_modules' in d:
+            invalid = set(d['enabled_modules']) - get_valid_module_keys(org.business_type)
+            if invalid:
+                raise ValidationError({
+                    'enabled_modules': (
+                        f'Módulos no válidos para el vertical "{org.business_type}": '
+                        f'{", ".join(sorted(invalid))}.'
+                    )
+                })
+
         org.name = d.get('name', org.name)
         org.primary_color = d.get('primary_color', org.primary_color)
         org.logo_url = d.get('logo_url', org.logo_url)
@@ -393,7 +495,7 @@ class RegisterOrganizationView(APIView):
             name=d['name'],
             slug=d['slug'],
             payment_status='trial',
-            enabled_modules=['clients'],
+            enabled_modules=['members'],
         )
 
         user = UserModel.objects.create_user(
@@ -421,6 +523,8 @@ class RegisterOrganizationView(APIView):
             onboarding_completed=org.onboarding_completed,
             primary_color=org.primary_color,
             logo_url=org.logo_url,
+            business_type=org.business_type,
+            currency=org.currency,
         )
         auth_user = AuthenticatedUser(
             id=user.id,
@@ -546,6 +650,8 @@ class AcceptInviteView(APIView):
             onboarding_completed=org.onboarding_completed,
             primary_color=org.primary_color,
             logo_url=org.logo_url,
+            business_type=org.business_type,
+            currency=org.currency,
         )
         auth_user = AuthenticatedUser(
             id=user.id,

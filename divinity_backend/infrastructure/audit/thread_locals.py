@@ -26,3 +26,27 @@ def get_audit_org_id() -> int | None:
 def clear_audit_context() -> None:
     _local.user_id = None
     _local.org_id = None
+    _local.deleting_org_ids = set()
+
+
+def mark_organization_deleting(org_id: int) -> None:
+    """Marca una organización como 'borrándose en esta operación' — se llama
+    desde pre_delete de OrganizationModel, antes de que el collector de Django
+    borre en cascada sus filas relacionadas (memberships, miembros, etc.)."""
+    ids = getattr(_local, 'deleting_org_ids', None)
+    if ids is None:
+        ids = set()
+        _local.deleting_org_ids = ids
+    ids.add(org_id)
+
+
+def unmark_organization_deleting(org_id: int) -> None:
+    ids = getattr(_local, 'deleting_org_ids', None)
+    if ids:
+        ids.discard(org_id)
+
+
+def is_organization_deleting(org_id: int | None) -> bool:
+    if org_id is None:
+        return False
+    return org_id in getattr(_local, 'deleting_org_ids', ())

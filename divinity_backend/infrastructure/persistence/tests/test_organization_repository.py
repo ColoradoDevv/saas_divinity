@@ -61,16 +61,17 @@ class TestGetBySlug:
 @pytest.mark.django_db
 class TestToOrgEntity:
     def test_maps_enabled_modules_as_tuple(self, repo, make_org):
-        org = make_org(slug='tuple-org', enabled_modules=['workers', 'clients'])
+        org = make_org(slug='tuple-org', enabled_modules=['workers', 'members'])
         entity = repo._to_org_entity(org)
         assert isinstance(entity.enabled_modules, tuple)
-        assert set(entity.enabled_modules) == {'workers', 'clients'}
+        assert set(entity.enabled_modules) == {'workers', 'members'}
 
     def test_maps_all_fields(self, repo, make_org):
         org = make_org(
             slug='full-org', name='Full Org', plan='enterprise',
             is_active=True, onboarding_completed=True,
             primary_color='#FF0000', logo_url='http://logo.url',
+            business_type='gym', currency='USD',
         )
         entity = repo._to_org_entity(org)
         assert entity.id == org.id
@@ -81,6 +82,8 @@ class TestToOrgEntity:
         assert entity.onboarding_completed is True
         assert entity.primary_color == '#FF0000'
         assert entity.logo_url == 'http://logo.url'
+        assert entity.business_type == 'gym'
+        assert entity.currency == 'USD'
 
 
 @pytest.mark.django_db

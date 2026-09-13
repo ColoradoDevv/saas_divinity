@@ -1,21 +1,39 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useOrgStore } from '@/app/store/org';
+import {
+  useBiometricDevices,
+  useCreateEnrollment,
+  useDeleteEnrollment,
+  useMemberEnrollments,
+} from '@/modules/attendance/hooks/useAttendance';
 import {
   md3BodyMediumClass,
   md3DestructiveButtonClass,
   md3FilledButtonClass,
   md3HeadlineSmallClass,
+  md3InputLabelClass,
   md3LabelLargeClass,
   md3OutlinedButtonClass,
   md3OverlineClass,
   md3SurfaceClass,
+  md3TextFieldClass,
   md3TitleMediumClass,
 } from '@/shared/ui/material';
+import {
+  useFreezeSubscription,
+  useMemberBilling,
+  useResumeSubscription,
+} from '@/modules/billing/hooks/useBilling';
+import { SUBSCRIPTION_STATUS_CONFIG } from '@/modules/billing/constants';
+import { RenewModal } from '@/modules/billing/components/RenewModal';
+import { useCurrencyFormatter } from '@/shared/hooks/useCurrencyFormatter';
+import { useToast } from '@/shared/hooks/useToast';
 import { MemberFormModal } from '../components/MemberFormModal';
-import { useDeactivateMember, useMember } from '../hooks/useMembers';
-import type { MemberStatus } from '../types';
+import { MemberQRCode } from '../components/MemberQRCode';
+import { useActivatePortalAccess, useDeactivateMember, useMember } from '../hooks/useMembers';
+import type { Member, MemberStatus } from '../types';
 
 const STATUS_CONFIG: Record<MemberStatus, { label: string; cls: string }> = {
   active:    { label: 'Activo',     cls: 'bg-tertiary-container text-on-tertiary-container' },
@@ -34,12 +52,398 @@ const FieldRow = ({ label, value }: { label: string; value: string | null | unde
   </div>
 );
 
+// ─── Renovar membresía ────────────────────────────────────────────────────────
+
+const RenewModal = ({ memberId, onClose }: { memberId: number; onClose: () => void }) => {
+  const { data: plans = [] } = usePlans(true);
+  const renew = useRenewMembership(memberId);
+  const formatMoney = useCurrencyFormatter();
+
+  const [planId, setPlanId] = useState<number | null>(null);
+  const [method, setMethod] = useState<PaymentMethod>('cash');
+  const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (plans.length > 0 && planId === null) {
+      setPlanId(plans[0].id);
+      setAmount(plans[0].price);
+    }
+  }, [plans, planId]);
+
+  const selectedPlan = plans.find((p) => p.id === planId);
+
+  const handleSubmit = async (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    if (!planId) return;
+    setError('');
+    try {
+      await renew.mutateAsync({ member_id: memberId, plan_id: planId, method, amount: amount || undefined, notes });
+      onClose();
+    } catch {
+      setError('Error al renovar la membresía. Verifica los datos.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className={`${md3SurfaceClass} w-full max-w-md shadow-2xl`}>
+        <div className="p-6 sm:p-8">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <h3 className={md3TitleMediumClass}>Renovar membresía</h3>
+            <button type="button" onClick={onClose} className="rounded-full p-1.5 text-on-surface-variant hover:bg-on-surface/8 transition">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {plans.length === 0 ? (
+            <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+              No hay planes activos. Crea uno primero en Configuración → Planes de membresía.
+            </p>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className={md3InputLabelClass}>Plan *</label>
+                <select className={`${md3TextFieldClass} appearance-none`}
+                  value={planId ?? ''}
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    setPlanId(id);
+                    setAmount(plans.find((p) => p.id === id)?.price ?? '');
+                  }}>
+                  {plans.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} — {formatMoney(p.price)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={md3InputLabelClass}>Monto cobrado</label>
+                  <input type="number" min="0" step="0.01" className={md3TextFieldClass}
+                    value={amount} onChange={(e) => setAmount(e.target.value)} />
+                </div>
+                <div>
+                  <label className={md3InputLabelClass}>Método de pago</label>
+                  <select className={`${md3TextFieldClass} appearance-none`}
+                    value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
+                    {Object.entries(PAYMENT_METHOD_LABELS).map(([val, lbl]) => (
+                      <option key={val} value={val}>{lbl}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className={md3InputLabelClass}>Notas</label>
+                <input className={md3TextFieldClass} placeholder="Opcional"
+                  value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </div>
+
+              {selectedPlan && (
+                <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+                  Vence en {selectedPlan.duration_value} {DURATION_UNIT_LABELS[selectedPlan.duration_unit]} desde hoy.
+                </p>
+              )}
+
+              {error && <p className={`text-error ${md3BodyMediumClass}`}>{error}</p>}
+
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className={`${md3FilledButtonClass} flex-1`} disabled={renew.isPending}>
+                  {renew.isPending ? 'Guardando...' : 'Confirmar renovación'}
+                </button>
+                <button type="button" onClick={onClose} className={md3OutlinedButtonClass}>Cancelar</button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Sección Acceso al portal ─────────────────────────────────────────────────
+
+const PortalAccessSection = ({ member }: { member: Member }) => {
+  const activatePortalAccess = useActivatePortalAccess();
+  const showToast = useToast();
+  const [confirmResend, setConfirmResend] = useState(false);
+
+  const handleSend = async () => {
+    try {
+      await activatePortalAccess.mutateAsync(member.id);
+      showToast('Invitación enviada por email.');
+      setConfirmResend(false);
+    } catch {
+      showToast('No se pudo enviar la invitación.', 'error');
+    }
+  };
+
+  return (
+    <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
+      <h2 className={`mb-4 ${md3TitleMediumClass}`}>Acceso al portal</h2>
+      {!member.has_portal_access ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+            Este miembro todavía no tiene acceso al portal de autoservicio.
+          </p>
+          <button type="button" onClick={handleSend} disabled={activatePortalAccess.isPending} className={md3FilledButtonClass}>
+            {activatePortalAccess.isPending ? 'Enviando...' : 'Enviar invitación al portal'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="rounded-full bg-tertiary-container px-3 py-1 text-sm font-medium text-on-tertiary-container">
+            Portal activado
+          </span>
+          {confirmResend ? (
+            <div className="flex items-center gap-2">
+              <span className={`text-on-surface-variant ${md3BodyMediumClass}`}>¿Reenviar invitación?</span>
+              <button type="button" onClick={handleSend} disabled={activatePortalAccess.isPending} className={md3FilledButtonClass}>
+                Sí, reenviar
+              </button>
+              <button type="button" onClick={() => setConfirmResend(false)} className={md3OutlinedButtonClass}>
+                No
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmResend(true)} className={md3OutlinedButtonClass}>
+              Reenviar invitación
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
+// ─── Sección Huella digital (complemento) ─────────────────────────────────────
+
+const BiometricEnrollmentSection = ({ member }: { member: Member }) => {
+  const showToast = useToast();
+  const { data: devices = [] } = useBiometricDevices();
+  const { data: enrollments = [], isLoading } = useMemberEnrollments(member.id);
+
+  const [showForm, setShowForm] = useState(false);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<number | ''>('');
+  const [externalUserId, setExternalUserId] = useState('');
+  const [error, setError] = useState('');
+
+  const createEnrollment = useCreateEnrollment(selectedDeviceId === '' ? 0 : selectedDeviceId);
+  const deleteEnrollment = useDeleteEnrollment(selectedDeviceId === '' ? 0 : selectedDeviceId);
+
+  const enrolledDeviceIds = new Set(enrollments.map((e) => e.device_id));
+  const availableDevices = devices.filter((d) => d.is_active && !enrolledDeviceIds.has(d.id));
+
+  const handleSubmit = async (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    setError('');
+    if (selectedDeviceId === '') {
+      setError('Selecciona un dispositivo.');
+      return;
+    }
+    try {
+      await createEnrollment.mutateAsync({ memberId: member.id, externalUserId: externalUserId.trim() });
+      showToast('Huella enrolada.');
+      setShowForm(false);
+      setExternalUserId('');
+      setSelectedDeviceId('');
+    } catch {
+      setError('No se pudo enrolar (¿ese id ya está en uso en este dispositivo?).');
+    }
+  };
+
+  const handleRemove = async (enrollmentId: number, deviceId: number) => {
+    setSelectedDeviceId(deviceId);
+    await deleteEnrollment.mutateAsync(enrollmentId);
+    showToast('Enrolamiento eliminado.');
+  };
+
+  return (
+    <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className={md3TitleMediumClass}>Huella digital</h2>
+        {!showForm && availableDevices.length > 0 && (
+          <button type="button" onClick={() => setShowForm(true)} className={md3OutlinedButtonClass}>
+            + Enrolar en un dispositivo
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="mb-4 space-y-4 rounded-[16px] border border-outline-variant p-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={md3InputLabelClass}>Dispositivo *</label>
+              <select
+                className={`${md3TextFieldClass} appearance-none`}
+                value={selectedDeviceId}
+                onChange={(e) => setSelectedDeviceId(e.target.value ? Number(e.target.value) : '')}
+              >
+                <option value="">Seleccionar...</option>
+                {availableDevices.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={md3InputLabelClass}>Id en el dispositivo *</label>
+              <input
+                required
+                className={md3TextFieldClass}
+                placeholder="el id que arrojó el equipo al tomar la huella"
+                value={externalUserId}
+                onChange={(e) => setExternalUserId(e.target.value)}
+              />
+            </div>
+          </div>
+          {error && <p className={`text-error ${md3BodyMediumClass}`}>{error}</p>}
+          <div className="flex gap-3">
+            <button type="submit" disabled={createEnrollment.isPending} className={md3FilledButtonClass}>
+              {createEnrollment.isPending ? 'Guardando...' : 'Enrolar'}
+            </button>
+            <button type="button" onClick={() => setShowForm(false)} className={md3OutlinedButtonClass}>Cancelar</button>
+          </div>
+        </form>
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center py-6">
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
+        </div>
+      ) : enrollments.length === 0 ? (
+        <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+          Este miembro no está enrolado en ningún dispositivo biométrico todavía.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {enrollments.map((e) => (
+            <div key={e.id} className="flex items-center justify-between rounded-2xl border border-outline-variant/60 px-4 py-2.5">
+              <div>
+                <p className="font-medium text-on-surface">{e.device_name}</p>
+                <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>id: {e.external_user_id}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemove(e.id, e.device_id)}
+                className="rounded-full px-3 py-1.5 text-xs font-medium text-error hover:bg-error/8 transition"
+              >
+                Quitar
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
+
+const MembershipSection = ({ memberId, canManage }: { memberId: number; canManage: boolean }) => {
+  const { data: billing, isLoading } = useMemberBilling(memberId);
+  const freeze = useFreezeSubscription(memberId);
+  const resume = useResumeSubscription(memberId);
+  const formatMoney = useCurrencyFormatter();
+  const [showRenew, setShowRenew] = useState(false);
+
+  const current = billing?.current_subscription ?? null;
+  const statusCfg = current ? (SUBSCRIPTION_STATUS_CONFIG[current.status] ?? SUBSCRIPTION_STATUS_CONFIG.cancelled) : null;
+
+  return (
+    <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
+      {showRenew && <RenewModal memberId={memberId} onClose={() => setShowRenew(false)} />}
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className={md3TitleMediumClass}>Membresía</h2>
+        {canManage && (
+          <button type="button" onClick={() => setShowRenew(true)} className={md3FilledButtonClass}>
+            Renovar membresía
+          </button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-6">
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
+        </div>
+      ) : !current ? (
+        <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+          Este miembro no tiene una membresía activa.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`rounded-full px-3 py-1 text-sm font-semibold ${statusCfg!.cls}`}>
+              {statusCfg!.label}
+            </span>
+            <span className={`text-on-surface ${md3LabelLargeClass}`}>{current.plan_name}</span>
+            <span className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+              Vence el {new Date(current.end_date).toLocaleDateString('es')}
+            </span>
+          </div>
+
+          {canManage && (
+            <div className="flex gap-2">
+              {current.status === 'active' && (
+                <button type="button" onClick={() => freeze.mutate(current.id)}
+                  disabled={freeze.isPending} className={md3OutlinedButtonClass}>
+                  {freeze.isPending ? 'Congelando...' : 'Congelar'}
+                </button>
+              )}
+              {current.status === 'frozen' && (
+                <button type="button" onClick={() => resume.mutate(current.id)}
+                  disabled={resume.isPending} className={md3OutlinedButtonClass}>
+                  {resume.isPending ? 'Reanudando...' : 'Reanudar'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {billing && billing.payments.length > 0 && (
+        <div className="mt-6">
+          <h3 className={`mb-3 text-on-surface-variant ${md3BodyMediumClass}`}>Historial de pagos</h3>
+          <div className="overflow-x-auto rounded-[16px] border border-outline-variant">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-outline-variant bg-surface-container">
+                  <th className="px-4 py-2.5 text-left font-semibold text-on-surface-variant">Fecha</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-on-surface-variant">Monto</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-on-surface-variant">Método</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/40">
+                {billing.payments.map((p) => (
+                  <tr key={p.id}>
+                    <td className="px-4 py-2.5 text-on-surface-variant">{new Date(p.paid_at).toLocaleDateString('es')}</td>
+                    <td className="px-4 py-2.5 text-on-surface">{formatMoney(p.amount)}</td>
+                    <td className="px-4 py-2.5 text-on-surface-variant">{PAYMENT_METHOD_LABELS[p.method]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
 export const MemberDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const role = useOrgStore((state) => state.role);
+  const organization = useOrgStore((state) => state.organization);
+  const allowedModules = useOrgStore((state) => state.allowedModules);
   const isAdmin = role === 'admin';
   const isAdminOrManager = role === 'admin' || role === 'manager';
+
+  const activeModules = allowedModules !== null ? allowedModules : (organization?.enabled_modules ?? []);
+  const billingModuleActive = activeModules.includes('payments');
+  const biometricDevicesActive = activeModules.includes('biometric_devices');
 
   const { data: member, isLoading, isError } = useMember(Number(id));
   const deactivate = useDeactivateMember();
@@ -141,12 +545,30 @@ export const MemberDetailPage = () => {
       {/* Datos principales */}
       <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
         <h2 className={`mb-4 ${md3TitleMediumClass}`}>Información principal</h2>
-        <dl className="divide-y divide-outline-variant/40">
-          <FieldRow label="Nombre completo" value={member.full_name} />
-          <FieldRow label="Correo" value={member.email} />
-          <FieldRow label="Teléfono" value={member.phone} />
-        </dl>
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <dl className="w-full divide-y divide-outline-variant/40">
+            <FieldRow label="Nombre completo" value={member.full_name} />
+            <FieldRow label="Correo" value={member.email} />
+            <FieldRow label="Teléfono" value={member.phone} />
+            <FieldRow label="Código de miembro" value={member.member_code} />
+          </dl>
+          {member.member_code && (
+            <div className="flex flex-shrink-0 flex-col items-center gap-2">
+              <MemberQRCode value={member.member_code} />
+              <span className={`text-on-surface-variant ${md3BodyMediumClass}`}>Check-in</span>
+            </div>
+          )}
+        </div>
       </section>
+
+      {/* Acceso al portal — solo admin */}
+      {isAdmin && <PortalAccessSection member={member} />}
+
+      {/* Huella digital — complemento, solo si la organización lo tiene otorgado */}
+      {isAdmin && biometricDevicesActive && <BiometricEnrollmentSection member={member} />}
+
+      {/* Membresía — solo si el módulo de pagos está activo para este usuario */}
+      {billingModuleActive && <MembershipSection memberId={member.id} canManage={isAdminOrManager} />}
 
       {/* Campos estándar adicionales */}
       {standardEntries.length > 0 && (

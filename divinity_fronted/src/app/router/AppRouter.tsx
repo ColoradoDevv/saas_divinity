@@ -12,44 +12,33 @@ import { AdminDashboardPage } from '@/modules/admin/pages/AdminDashboardPage';
 import { AdminOrganizationsPage } from '@/modules/admin/pages/AdminOrganizationsPage';
 import { AdminPaymentsPage } from '@/modules/admin/pages/AdminPaymentsPage';
 import { AdminSystemPage } from '@/modules/admin/pages/AdminSystemPage';
+import { AttendancePage } from '@/modules/attendance/pages/AttendancePage';
+import { DeviceSettingsPage } from '@/modules/attendance/pages/DeviceSettingsPage';
 import { AuditPage } from '@/modules/audit/pages/AuditPage';
+import { BillingPage } from '@/modules/billing/pages/BillingPage';
+import { PlansSettingsPage } from '@/modules/billing/pages/PlansSettingsPage';
+import { ClassesPage } from '@/modules/classes/pages/ClassesPage';
+import { ClassSettingsPage } from '@/modules/classes/pages/ClassSettingsPage';
+import { PortalRoute } from '@/modules/member-portal/components/PortalRoute';
+import { PortalLayout } from '@/modules/member-portal/layouts/PortalLayout';
+import { PortalActivatePage } from '@/modules/member-portal/pages/PortalActivatePage';
+import { PortalClassesPage } from '@/modules/member-portal/pages/PortalClassesPage';
+import { PortalHomePage } from '@/modules/member-portal/pages/PortalHomePage';
+import { PortalLoginPage } from '@/modules/member-portal/pages/PortalLoginPage';
+import { PortalPaymentsPage } from '@/modules/member-portal/pages/PortalPaymentsPage';
+import { PortalQRPage } from '@/modules/member-portal/pages/PortalQRPage';
 import { DashboardPage } from '@/modules/dashboard/pages/DashboardPage';
 import { MemberDetailPage } from '@/modules/members/pages/MemberDetailPage';
 import { MembersPage } from '@/modules/members/pages/MembersPage';
 import { MemberSettingsPage } from '@/modules/members/pages/MemberSettingsPage';
 import { OnboardingPage } from '@/modules/onboarding/pages/OnboardingPage';
+import { OrganizationSettingsPage } from '@/modules/organizations/pages/OrganizationSettingsPage';
+import { ReportsPage } from '@/modules/reports/pages/ReportsPage';
 import { WorkersPage } from '@/modules/workers/pages/WorkersPage';
 import { AdminLayout } from '@/shared/layouts/AdminLayout';
 import { DashboardLayout } from '@/shared/layouts/DashboardLayout';
+import { ToastContainer } from '@/shared/components/ToastContainer';
 import { resolveMediaUrl } from '@/shared/utils/media';
-import {
-  md3BodyLargeClass,
-  md3BodyMediumClass,
-  md3HeadlineSmallClass,
-  md3LabelLargeClass,
-  md3OverlineClass,
-  md3SurfaceClass,
-} from '@/shared/ui/material';
-
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <span className={md3OverlineClass}>Módulo protegido</span>
-        <h1 className={`mt-3 ${md3HeadlineSmallClass}`}>{title}</h1>
-        <p className={`mt-3 max-w-2xl text-on-surface-variant ${md3BodyLargeClass}`}>
-          Este módulo ya está protegido por autenticación y listo para la siguiente fase.
-        </p>
-      </div>
-      <span className={`inline-flex rounded-full bg-secondary-container px-4 py-2 text-on-secondary-container ${md3LabelLargeClass}`}>
-        Próximamente
-      </span>
-    </div>
-    <p className={`mt-6 text-on-surface-variant ${md3BodyMediumClass}`}>
-      Estará disponible en la siguiente actualización.
-    </p>
-  </section>
-);
 
 const ProtectedLayout = () => (
   <PrivateRoute>
@@ -110,10 +99,55 @@ export const AppRouter = () => {
 
   return (
     <BrowserRouter>
+      <ToastContainer />
       <Routes>
         {/* Rutas públicas */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+        {/* Portal del miembro — experiencia separada del dashboard de staff */}
+        <Route path="/portal/login" element={<PortalLoginPage />} />
+        <Route path="/portal/activate/:token" element={<PortalActivatePage />} />
+        <Route
+          path="/portal"
+          element={
+            <PortalRoute>
+              <PortalLayout>
+                <PortalHomePage />
+              </PortalLayout>
+            </PortalRoute>
+          }
+        />
+        <Route
+          path="/portal/payments"
+          element={
+            <PortalRoute>
+              <PortalLayout>
+                <PortalPaymentsPage />
+              </PortalLayout>
+            </PortalRoute>
+          }
+        />
+        <Route
+          path="/portal/classes"
+          element={
+            <PortalRoute>
+              <PortalLayout>
+                <PortalClassesPage />
+              </PortalLayout>
+            </PortalRoute>
+          }
+        />
+        <Route
+          path="/portal/qr"
+          element={
+            <PortalRoute>
+              <PortalLayout>
+                <PortalQRPage />
+              </PortalLayout>
+            </PortalRoute>
+          }
+        />
 
         {/* Rutas del superadmin */}
         <Route element={<AdminProtectedLayout />}>
@@ -132,9 +166,14 @@ export const AppRouter = () => {
           <Route path="/members" element={<MembersPage />} />
           <Route path="/members/:id" element={<MemberDetailPage />} />
           <Route path="/settings/members" element={<MemberSettingsPage />} />
+          <Route path="/settings/plans" element={<PlansSettingsPage />} />
+          <Route path="/settings/organization" element={<OrganizationSettingsPage />} />
           <Route path="/workers" element={<WorkersPage />} />
-          <Route path="/payments" element={<PlaceholderPage title="Pagos" />} />
-          <Route path="/attendance" element={<PlaceholderPage title="Asistencia" />} />
+          <Route path="/payments" element={<BillingPage />} />
+          <Route path="/attendance" element={<AttendancePage />} />
+          <Route path="/settings/devices" element={<DeviceSettingsPage />} />
+          <Route path="/classes" element={<ClassesPage />} />
+          <Route path="/settings/classes" element={<ClassSettingsPage />} />
           <Route
             path="/audit"
             element={
@@ -143,7 +182,7 @@ export const AppRouter = () => {
               </AdminOrStaffRoute>
             }
           />
-          <Route path="/reports" element={<PlaceholderPage title="Reportes" />} />
+          <Route path="/reports" element={<ReportsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

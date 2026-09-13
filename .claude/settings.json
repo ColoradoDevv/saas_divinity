@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest apps/billing/tests/test_daily_stats.py apps/billing/tests/test_views.py --no-cov -q)",
+      "Bash(python -c ' *)",
+      "Bash(python -m pytest apps/billing/tests/test_views.py::TestDailyStatsExportView::test_pdf_export_returns_pdf_bytes --no-cov -q -s)",
+      "Bash(python -m pytest apps/classes/tests/test_services.py --no-cov -q)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8000/api/classes/sessions/)",
+      "Bash(python manage.py migrate members)",
+      "Bash(python manage.py migrate member_portal)"
+    ]
+  }
+}
