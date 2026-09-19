@@ -215,13 +215,14 @@ class DjangoORMClassRepository(ClassRepositoryInterface):
                 )
             day += timedelta(days=1)
 
-    def get_session_by_id(self, session_id: int, organization_id: int) -> Optional[ClassSession]:
+    def get_session_by_id(
+        self, session_id: int, organization_id: int, *, lock: bool = False
+    ) -> Optional[ClassSession]:
+        qs = ClassSessionModel.objects.select_related('class_type', 'instructor')
+        if lock:
+            qs = qs.select_for_update()
         try:
-            model = (
-                ClassSessionModel.objects
-                .select_related('class_type', 'instructor')
-                .get(pk=session_id, organization_id=organization_id)
-            )
+            model = qs.get(pk=session_id, organization_id=organization_id)
         except ClassSessionModel.DoesNotExist:
             return None
         entity = self._session_to_entity(model)

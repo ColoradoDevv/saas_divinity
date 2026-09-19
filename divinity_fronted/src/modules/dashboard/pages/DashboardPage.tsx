@@ -11,10 +11,12 @@ import { useTasks, useUpdateTask } from '@/modules/workers/hooks/useWorkers';
 import type { Task } from '@/modules/workers/types';
 import { useCurrencyFormatter } from '@/shared/hooks/useCurrencyFormatter';
 import { useModulePermissions } from '@/shared/hooks/useModulePermission';
+import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
-  md3HeadlineMediumClass,
-  md3BodyLargeClass,
+  md3HeadlineSmallClass,
+  md3NeutralChipClass,
   md3OverlineClass,
   md3SurfaceClass,
   md3TextFieldClass,
@@ -101,6 +103,7 @@ const sortActiveTasks = (tasks: Task[]): Task[] =>
 const MyTasksPanel = () => {
   const { data: allTasks = [], isLoading } = useTasks();
   const updateTask = useUpdateTask();
+  const showToast = useToast();
   const [showAll, setShowAll] = useState(false);
 
   const activeTasks = sortActiveTasks(allTasks);
@@ -110,7 +113,9 @@ const MyTasksPanel = () => {
 
   const advance = (task: Task) => {
     const next: Task['status'] = task.status === 'pending' ? 'in_progress' : 'done';
-    updateTask.mutate({ id: task.id, payload: { status: next } });
+    updateTask.mutate({ id: task.id, payload: { status: next } }, {
+      onError: (err) => showToast(getApiErrorMessage(err, 'No se pudo actualizar la tarea.'), 'error'),
+    });
   };
 
   return (
@@ -609,30 +614,19 @@ export const DashboardPage = () => {
     <div className="space-y-6">
 
       {/* ── Welcome hero ── */}
-      <section className={`${md3SurfaceClass} overflow-hidden p-6 sm:p-8`}>
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <section className={`${md3SurfaceClass} overflow-hidden p-5 sm:p-6`}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <span className={md3OverlineClass}>Panel principal</span>
-            <h2 className={`mt-2 ${md3HeadlineMediumClass}`}>
+            <h2 className={`mt-1.5 ${md3HeadlineSmallClass}`}>
               {greeting}
               {user?.first_name && <span className="text-primary">, {user.first_name}</span>}
             </h2>
-            <p className={`mt-2 capitalize text-on-surface-variant ${md3BodyLargeClass}`}>{dateStr}</p>
+            <p className={`mt-1 capitalize text-on-surface-variant ${md3BodyMediumClass}`}>{dateStr}</p>
           </div>
-          <div className="flex h-[4.5rem] w-[4.5rem] flex-shrink-0 items-center justify-center self-start rounded-full bg-primary text-2xl font-semibold text-on-primary shadow-md sm:self-auto">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center self-start rounded-full bg-primary text-base font-semibold text-on-primary shadow-md sm:self-auto">
             {getInitials(user?.first_name, user?.last_name, user?.username)}
           </div>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-container/50 px-3 py-1.5 text-[0.75rem] font-medium text-on-primary-container">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />Sesión activa
-          </span>
-          {organization && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/20 bg-secondary-container/50 px-3 py-1.5 text-[0.75rem] font-medium text-on-secondary-container">
-              {organization.name}
-            </span>
-          )}
         </div>
       </section>
 

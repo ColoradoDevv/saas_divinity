@@ -12,7 +12,8 @@ igual que DashboardSummaryView.
 from datetime import date, timedelta
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Count, Sum
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from .models import DailyStatsSnapshotModel, DuesPaymentModel
@@ -35,7 +36,14 @@ def _compute_day_stats(organization_id: int, day: date) -> dict:
 
 
 def sync_daily_stats(organization_id: int, date_from: date, date_to: date) -> None:
-    """Crea los snapshots faltantes para los días ya cerrados (< hoy) del rango."""
+    """Crea los snapshots faltantes para los días ya cerrados (< hoy) del rango.
+
+    Calcula los 3 totales (ingresos, check-ins, miembros nuevos) con una consulta
+    agregada por métrica para todo el rango de una vez, en vez de una por día —
+    un rango de un año no debe traducirse en ~1000 consultas secuenciales."""
+    from apps.attendance.models import CheckInModel
+    from apps.members.models import MemberModel
+
     today = timezone.localdate()
     past_end = min(date_to, today - timedelta(days=1))
     if date_from > past_end:
@@ -47,16 +55,43 @@ def sync_daily_stats(organization_id: int, date_from: date, date_to: date) -> No
         ).values_list('date', flat=True)
     )
 
-    to_create = []
+    missing_days = []
     day = date_from
     while day <= past_end:
         if day not in existing_dates:
-            stats = _compute_day_stats(organization_id, day)
-            to_create.append(DailyStatsSnapshotModel(organization_id=organization_id, date=day, **stats))
+            missing_days.append(day)
         day += timedelta(days=1)
 
-    if to_create:
-        DailyStatsSnapshotModel.objects.bulk_create(to_create, ignore_conflicts=True)
+    if not missing_days:
+        return
+
+    revenue_by_day = dict(
+        DuesPaymentModel.objects
+        .filter(organization_id=organization_id, paid_at__gte=date_from, paid_at__lte=past_end)
+        .values('paid_at').annotate(total=Sum('amount')).values_list('paid_at', 'total')
+    )
+    checkins_by_day = dict(
+        CheckInModel.objects
+        .filter(organization_id=organization_id, checked_in_at__date__gte=date_from, checked_in_at__date__lte=past_end)
+        .annotate(day=TruncDate('checked_in_at')).values('day').annotate(total=Count('id')).values_list('day', 'total')
+    )
+    new_members_by_day = dict(
+        MemberModel.objects
+        .filter(organization_id=organization_id, created_at__date__gte=date_from, created_at__date__lte=past_end)
+        .annotate(day=TruncDate('created_at')).values('day').annotate(total=Count('id')).values_list('day', 'total')
+    )
+
+    to_create = [
+        DailyStatsSnapshotModel(
+            organization_id=organization_id,
+            date=day,
+            revenue=revenue_by_day.get(day) or Decimal('0'),
+            checkins=checkins_by_day.get(day, 0),
+            new_members=new_members_by_day.get(day, 0),
+        )
+        for day in missing_days
+    ]
+    DailyStatsSnapshotModel.objects.bulk_create(to_create, ignore_conflicts=True)
 
 
 def get_daily_stats(organization_id: int, date_from: date, date_to: date) -> list[dict]:

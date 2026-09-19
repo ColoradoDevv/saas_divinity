@@ -56,15 +56,24 @@ describe('clearOrganization', () => {
   });
 });
 
+const HEX = /^#[0-9a-f]{6}$/i;
+
 describe('applyOrgColor', () => {
-  it('sets css variable for valid lowercase hex', () => {
-    applyOrgColor('#ff0000');
-    expect(document.documentElement.style.getPropertyValue('--color-primary')).toBe('#ff0000');
+  it('derives and sets the whole primary family for a valid lowercase hex', () => {
+    applyOrgColor('#ff0000', false);
+    const style = document.documentElement.style;
+    expect(style.getPropertyValue('--color-primary')).toMatch(HEX);
+    expect(style.getPropertyValue('--color-on-primary')).toMatch(HEX);
+    expect(style.getPropertyValue('--color-primary-container')).toMatch(HEX);
+    expect(style.getPropertyValue('--color-on-primary-container')).toMatch(HEX);
   });
 
-  it('sets css variable for valid uppercase hex', () => {
-    applyOrgColor('#FF0000');
-    expect(document.documentElement.style.getPropertyValue('--color-primary')).toBe('#FF0000');
+  it('is case-insensitive and produces the same result for uppercase hex', () => {
+    applyOrgColor('#ff0000', false);
+    const fromLower = document.documentElement.style.getPropertyValue('--color-primary');
+    applyOrgColor('#FF0000', false);
+    const fromUpper = document.documentElement.style.getPropertyValue('--color-primary');
+    expect(fromUpper).toBe(fromLower);
   });
 
   it('removes css variable for undefined', () => {
@@ -91,7 +100,7 @@ describe('applyMembership', () => {
     const s = useOrgStore.getState();
     expect(s.organization?.id).toBe(1);
     expect(s.role).toBe('admin');
-    expect(document.documentElement.style.getPropertyValue('--color-primary')).toBe('#FF0000');
+    expect(document.documentElement.style.getPropertyValue('--color-primary')).toMatch(HEX);
   });
 
   it('passes allowed_modules correctly', () => {

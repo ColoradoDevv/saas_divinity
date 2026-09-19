@@ -129,10 +129,14 @@ class RequireModule(BasePermission):
     def has_permission(self, request, view):
         org = getattr(request, 'organization', None)
         if org is None:
+            self.message = 'Tu sesión no tiene contexto de organización. Inicia sesión nuevamente.'
             return False
         if not self.module:
             return True
-        return self.module in (org.enabled_modules or [])
+        if self.module in (org.enabled_modules or []):
+            return True
+        self.message = f'El módulo "{self.module}" no está habilitado para tu organización.'
+        return False
 
 
 def module_permission(module_key: str) -> type[RequireModule]:

@@ -8,86 +8,154 @@
 
   /* ── Divinity Brand Palette → MD3 tokens ────────────────────────────────── */
   /* Primary: Divinity Blue #1E40AF / Divinity Bright #3B82F6                 */
-
+  /*
+   * Segunda pasada de la paleta neutra, más agresiva: la primera solo evitó
+   * el sesgo azul-violeta, pero dejó el nivel MÁS USADO en toda la app
+   * (surface-container-low, el fondo de casi cada tarjeta/sección — ver
+   * md3SurfaceClass) casi tan claro como blanco puro (97%). Eso es lo que
+   * realmente cansa: no es "blanco puro" en un solo lugar, es una pantalla
+   * casi entera de blanco-casi-puro durante horas. Dos cambios de fondo:
+   *  1. Se baja la luminosidad de base (~89-94% en vez de ~94-98%) en el
+   *     nivel que domina la pantalla, no solo en el fondo de página que
+   *     apenas se asoma entre tarjetas.
+   *  2. Los neutros pasan de acromáticos a tibios (un pelo más de rojo/
+   *     verde que de azul, escala "stone"), porque el ojo enfoca peor los
+   *     tonos fríos/azulados — reenfoca más seguido y se fatiga más rápido
+   *     que con tonos cálidos, a resolución y contraste iguales.
+   *     (colorscreen.dev/articles/best-colors-for-reducing-eye-strain,
+   *      pmc.ncbi.nlm.nih.gov/articles/PMC7784863)
+   *  3. Blanco puro (#ffffff) desaparece del todo — incluso el nivel "más
+   *     elevado" queda en off-white, nunca en el extremo.
+   *     (developerux.com/2025/07/28/best-practices-for-accessible-color-contrast-in-ux)
+   *  El color de marca (azul) se mantiene igual — es acento puntual, no el
+   *  problema; el problema era el fondo constante.
+   *
+   *  Los "container" (el fondo pálido detrás de íconos/insignias/estados)
+   *  SÍ se oscurecen/saturan un poco en esta vuelta: estaban calibrados
+   *  contra el blanco-frío de antes (~92-95% L) y contra el nuevo fondo
+   *  tibio quedaban casi del mismo tono que la tarjeta de alrededor — se
+   *  veían "lavados" en vez de leerse como un acento a propósito.
+   */
   --color-primary: #1e40af;
   --color-on-primary: #ffffff;
-  --color-primary-container: #dbeafe;
+  --color-primary-container: #bfdbfe;
   --color-on-primary-container: #1e3a8a;
 
   --color-secondary: #3730a3;
   --color-on-secondary: #ffffff;
-  --color-secondary-container: #e0e7ff;
+  --color-secondary-container: #c7d2fe;
   --color-on-secondary-container: #312e81;
 
   --color-tertiary: #6b5778;
   --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #f2daff;
+  --color-tertiary-container: #e0c3ec;
   --color-on-tertiary-container: #251431;
 
   --color-error: #ba1a1a;
   --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
+  --color-error-container: #f9c2bd;
   --color-on-error-container: #410002;
 
-  /* Cloud background (#FAFBFE) / Ink text (#0B1426) */
-  --color-background: #fafbfe;
-  --color-on-background: #0b1426;
+  /* Fondo de página — el nivel más oscuro de los neutros claros, ya que casi
+     todo el contenido vive en tarjetas por encima de él. */
+  --color-background: #eeece8;
+  --color-on-background: #1c1917;
 
-  --color-surface: #fafbfe;
-  --color-on-surface: #0b1426;
-  --color-surface-variant: #e2e5f0;
-  --color-on-surface-variant: #3a4057;
+  --color-surface: #eeece8;
+  --color-on-surface: #1c1917;
+  --color-surface-variant: #e3e0da;
+  --color-on-surface-variant: #57534d;
 
-  --color-outline: #6b7280;
-  --color-outline-variant: #c8ccd8;
+  --color-outline: #78716a;
+  --color-outline-variant: #d3cfc7;
 
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f3f4fb;
-  --color-surface-container: #eceef8;
-  --color-surface-container-high: #e5e7f4;
-  --color-surface-container-highest: #dde0ef;
+  /* surface-container-low es el fondo real de casi cada tarjeta/sección
+     (md3SurfaceClass) — el nivel que más pantalla ocupa, por eso es el que
+     más se tuvo que bajar de luminosidad. */
+  --color-surface-container-lowest: #f7f5f2;
+  --color-surface-container-low: #f0eeea;
+  --color-surface-container: #e9e6e1;
+  --color-surface-container-high: #e1ded7;
+  --color-surface-container-highest: #d8d4cb;
+
+  /* ── Movimiento ──────────────────────────────────────────────────────── */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-short: 150ms;
+  --duration-medium: 220ms;
+
+  --animate-fade-in: fade-in var(--duration-medium) var(--ease-standard) both;
+  --animate-scale-in: scale-in var(--duration-medium) var(--ease-standard) both;
+  --animate-slide-up: slide-up var(--duration-medium) var(--ease-standard) both;
+  --animate-slide-in-right: slide-in-right var(--duration-medium) var(--ease-standard) both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+  }
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(10px); }
+  }
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(16px); }
+  }
 }
 
 /* ── Dark mode ───────────────────────────────────────────────────────────── */
+/*
+ * Misma base que Material Design usa para su dark theme de referencia
+ * (superficie ~#121212, no negro puro) — el negro puro detrás de texto claro
+ * produce "halation" (el texto parece vibrar/desbordarse), cansa la vista y
+ * es peor para dislexia/astigmatismo. Texto en ~90% de blanco, nunca blanco
+ * puro, por el mismo motivo.
+ * (uxcel.com/blog/12-principles-of-dark-mode-design-627,
+ *  smashingmagazine.com/2025/04/inclusive-dark-mode-designing-accessible-dark-themes)
+ * Igual que en modo claro, los neutros llevan un tinte tibio (no acromático)
+ * — el mismo motivo por el que los fríos cansan más se aplica en oscuro.
+ * Los acentos de marca bajan de saturación (~20 puntos) respecto al modo
+ * claro — un azul igual de intenso sobre fondo oscuro "vibra" más de lo que
+ * conviene para uso prolongado.
+ */
 html.dark {
-  /* Primary: Halo Blue #60A5FA para fondos oscuros */
-  --color-primary: #60a5fa;
-  --color-on-primary: #1e3a8a;
-  --color-primary-container: #1e40af;
-  --color-on-primary-container: #dbeafe;
+  --color-primary: #7aa8ef;
+  --color-on-primary: #0a1c40;
+  --color-primary-container: #1e3a70;
+  --color-on-primary-container: #cfe0fb;
 
-  --color-secondary: #a5b4fc;
-  --color-on-secondary: #312e81;
-  --color-secondary-container: #3730a3;
-  --color-on-secondary-container: #e0e7ff;
+  --color-secondary: #a3addb;
+  --color-on-secondary: #262c54;
+  --color-secondary-container: #3a3f6b;
+  --color-on-secondary-container: #dfe2f7;
 
-  --color-tertiary: #d6bee4;
-  --color-on-tertiary: #3b2948;
-  --color-tertiary-container: #523f5f;
-  --color-on-tertiary-container: #f2daff;
+  --color-tertiary: #cbb2d6;
+  --color-on-tertiary: #3a2a44;
+  --color-tertiary-container: #4c3c57;
+  --color-on-tertiary-container: #ecd9f2;
 
-  --color-error: #ffb4ab;
-  --color-on-error: #690005;
-  --color-error-container: #93000a;
-  --color-on-error-container: #ffdad6;
+  --color-error: #f2a9a1;
+  --color-on-error: #5c1611;
+  --color-error-container: #7a241d;
+  --color-on-error-container: #f8d3ce;
 
-  /* Divinity Deep #0B1F5C como base del dark */
-  --color-background: #080e1c;
-  --color-on-background: #e2e8f8;
+  /* Superficie ~#121212 (recomendación de Material) con el mismo tinte tibio
+     que el modo claro, en vez de negro puro o negro azulado. */
+  --color-background: #17140f;
+  --color-on-background: #e9e5df;
 
-  --color-surface: #080e1c;
-  --color-on-surface: #e2e8f8;
-  --color-surface-variant: #1e2a4a;
-  --color-on-surface-variant: #b0bcd8;
+  --color-surface: #17140f;
+  --color-on-surface: #e9e5df;
+  --color-surface-variant: #2d2924;
+  --color-on-surface-variant: #a39d94;
 
-  --color-outline: #6b7fa8;
-  --color-outline-variant: #1e2a4a;
+  --color-outline: #78716a;
+  --color-outline-variant: #38332c;
 
-  --color-surface-container-lowest: #040810;
-  --color-surface-container-low: #0d1628;
-  --color-surface-container: #111d32;
-  --color-surface-container-high: #17253e;
-  --color-surface-container-highest: #1e2f4e;
+  --color-surface-container-lowest: #0d0b08;
+  --color-surface-container-low: #1e1a15;
+  --color-surface-container: #221e18;
+  --color-surface-container-high: #29241d;
+  --color-surface-container-highest: #302a22;
 }
 
 @layer base {
@@ -124,5 +192,29 @@ html.dark {
   textarea,
   select {
     font: inherit;
+  }
+
+  /* Scrollbar delgada y redondeada en vez de la barra gruesa por defecto del
+     sistema — aplica a cualquier contenedor con scroll (sidebar, modales,
+     tablas), sigue el tema claro/oscuro porque usa los tokens de color. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-outline-variant) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-outline-variant);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-outline);
   }
 }

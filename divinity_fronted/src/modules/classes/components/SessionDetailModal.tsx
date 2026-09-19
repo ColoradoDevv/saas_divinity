@@ -3,10 +3,13 @@ import { useState } from 'react';
 import { useMembers } from '@/modules/members/hooks/useMembers';
 import { useModulePermissions } from '@/shared/hooks/useModulePermission';
 import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3DestructiveButtonClass,
   md3InputLabelClass,
+  md3ModalBackdropClass,
+  md3ModalPanelAnimClass,
   md3OutlinedButtonClass,
   md3TextFieldClass,
   md3TitleMediumClass,
@@ -51,30 +54,42 @@ export const SessionDetailModal = ({ sessionId, onClose }: Props) => {
       await enroll.mutateAsync({ sessionId, memberId });
       setSearch('');
       showToast('Miembro inscrito.');
-    } catch {
-      showToast('No se pudo inscribir (¿cupo lleno o ya inscrito?).', 'error');
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo inscribir (¿cupo lleno o ya inscrito?).'), 'error');
     }
   };
 
   const handleCancelEnrollment = async (enrollmentId: number) => {
-    await cancelEnrollment.mutateAsync(enrollmentId);
-    showToast('Inscripción cancelada.');
+    try {
+      await cancelEnrollment.mutateAsync(enrollmentId);
+      showToast('Inscripción cancelada.');
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo cancelar la inscripción.'), 'error');
+    }
   };
 
   const handleAttend = async (enrollmentId: number) => {
-    await markAttended.mutateAsync(enrollmentId);
-    showToast('Asistencia marcada.');
+    try {
+      await markAttended.mutateAsync(enrollmentId);
+      showToast('Asistencia marcada.');
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo marcar la asistencia.'), 'error');
+    }
   };
 
   const handleCancelSession = async () => {
-    await cancelSession.mutateAsync(sessionId);
-    showToast('Clase cancelada. Se avisó por email a los miembros inscritos.');
-    onClose();
+    try {
+      await cancelSession.mutateAsync(sessionId);
+      showToast('Clase cancelada. Se avisó por email a los miembros inscritos.');
+      onClose();
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo cancelar la clase.'), 'error');
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[28px] bg-surface shadow-2xl">
+    <div className={md3ModalBackdropClass}>
+      <div className={`w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[28px] bg-surface shadow-2xl ${md3ModalPanelAnimClass}`}>
         <div className="p-6 sm:p-8">
           <div className="mb-6 flex items-center justify-between gap-4">
             <h3 className={md3TitleMediumClass}>

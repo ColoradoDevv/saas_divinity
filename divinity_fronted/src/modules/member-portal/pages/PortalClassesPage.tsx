@@ -5,14 +5,20 @@ import {
   md3FilledButtonClass,
   md3HeadlineMediumClass,
   md3OutlinedButtonClass,
-  md3OverlineClass,
-  md3SurfaceClass,
 } from '@/shared/ui/material';
 import { addDays, toISODate } from '@/shared/utils/date';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import { usePortalCancelEnrollment, usePortalEnroll, usePortalSessions } from '../hooks/useMemberPortal';
 import type { PortalClassSession } from '../types';
 
 const WEEKDAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+const ChevronIcon = ({ direction }: { direction: 'left' | 'right' }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={direction === 'left' ? 'M15 18l-6-6 6-6' : 'M9 18l6-6-6-6'} />
+  </svg>
+);
 
 const mondayOf = (d: Date): Date => {
   const day = (d.getDay() + 6) % 7;
@@ -39,8 +45,8 @@ const SessionRow = ({ session }: { session: PortalClassSession }) => {
     setError('');
     try {
       await enroll.mutateAsync(session.id);
-    } catch {
-      setError('No se pudo reservar (¿cupo lleno?).');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'No se pudo reservar (¿cupo lleno?).'));
     }
   };
 
@@ -49,8 +55,8 @@ const SessionRow = ({ session }: { session: PortalClassSession }) => {
     setError('');
     try {
       await cancel.mutateAsync(session.my_enrollment_id);
-    } catch {
-      setError('No se pudo cancelar la reserva.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'No se pudo cancelar la reserva.'));
     }
   };
 
@@ -113,22 +119,23 @@ export const PortalClassesPage = () => {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   return (
-    <div className="space-y-6">
-      <section className={`${md3SurfaceClass} p-6 sm:p-8`}>
-        <span className={md3OverlineClass}>Portal del miembro</span>
-        <h1 className={`mt-2 ${md3HeadlineMediumClass}`}>Clases</h1>
+    <div className="space-y-5">
+      <div className="px-1">
+        <h1 className={md3HeadlineMediumClass}>Clases</h1>
         <p className={`mt-1 text-on-surface-variant ${md3BodyMediumClass}`}>Reserva tu lugar en las próximas clases.</p>
-      </section>
+      </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={() => setWeekStart((d) => addDays(d, -7))} className={md3OutlinedButtonClass}>
-          ← Anterior
+      <div className="flex items-center justify-between gap-3 rounded-full border border-outline-variant/60 bg-surface-container-low py-1.5 pl-1.5 pr-1.5">
+        <button type="button" onClick={() => setWeekStart((d) => addDays(d, -7))} aria-label="Semana anterior"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-on-surface/8 active:scale-95">
+          <ChevronIcon direction="left" />
         </button>
-        <p className="text-sm font-semibold text-on-surface">
+        <p className="text-sm font-semibold capitalize text-on-surface">
           {weekStart.toLocaleDateString('es', { day: 'numeric', month: 'short' })} – {addDays(weekStart, 6).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
         </p>
-        <button type="button" onClick={() => setWeekStart((d) => addDays(d, 7))} className={md3OutlinedButtonClass}>
-          Siguiente →
+        <button type="button" onClick={() => setWeekStart((d) => addDays(d, 7))} aria-label="Semana siguiente"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-on-surface/8 active:scale-95">
+          <ChevronIcon direction="right" />
         </button>
       </div>
 
@@ -144,7 +151,7 @@ export const PortalClassesPage = () => {
             if (daySessions.length === 0) return null;
             return (
               <section key={iso}>
-                <h2 className="mb-2 text-sm font-semibold text-on-surface">
+                <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.03em] text-on-surface-variant">
                   {WEEKDAY_LABELS[(day.getDay() + 6) % 7]} {day.getDate()}
                 </h2>
                 <div className="space-y-2">
@@ -156,9 +163,11 @@ export const PortalClassesPage = () => {
             );
           })}
           {sessions.length === 0 && (
-            <p className={`text-center text-on-surface-variant ${md3BodyMediumClass}`}>
-              No hay clases programadas esta semana.
-            </p>
+            <div className="rounded-[28px] border-2 border-dashed border-outline-variant p-6 text-center">
+              <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+                No hay clases programadas esta semana.
+              </p>
+            </div>
           )}
         </div>
       )}

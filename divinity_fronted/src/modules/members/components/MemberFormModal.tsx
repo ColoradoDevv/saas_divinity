@@ -6,12 +6,16 @@ import { PAYMENT_METHOD_LABELS } from '@/modules/billing/constants';
 import { usePlans } from '@/modules/billing/hooks/useBilling';
 import { billingService } from '@/modules/billing/services/billingService';
 import type { PaymentMethod } from '@/modules/billing/types';
+import { CurrencyInput } from '@/shared/components/CurrencyInput';
 import { useCurrencyFormatter } from '@/shared/hooks/useCurrencyFormatter';
 import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3FilledButtonClass,
   md3InputLabelClass,
+  md3ModalBackdropClass,
+  md3ModalPanelAnimClass,
   md3OutlinedButtonClass,
   md3TextFieldClass,
   md3TitleMediumClass,
@@ -44,11 +48,14 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
 
   const { data: plans = [] } = usePlans(true, showPlanStep);
 
-  const steps = showPlanStep
-    ? (['Datos básicos', 'Datos adicionales', 'Foto', 'Plan de membresía'] as const)
-    : (['Datos básicos', 'Datos adicionales', 'Foto'] as const);
+  const baseSteps = ['Datos básicos', 'Datos adicionales', 'Foto', 'Plan de membresía'] as const;
   const [stepIndex, setStepIndex] = useState(0);
-  const currentStep = steps[stepIndex];
+  const [selectedPlanId, setSelectedPlanId] = useState<number | ''>('');
+  // El paso "Registrar pago" solo aparece si se eligió un plan en el paso anterior.
+  const steps = showPlanStep
+    ? (selectedPlanId !== '' ? [...baseSteps, 'Registrar pago'] as const : baseSteps)
+    : (['Datos básicos', 'Datos adicionales', 'Foto'] as const);
+  const currentStep = steps[stepIndex] as (typeof baseSteps)[number] | 'Registrar pago';
 
   const enabledStandard = fieldConfigs.filter((c) => c.is_enabled);
   const enabledCustom = customFields.filter((c) => c.is_enabled);
@@ -80,10 +87,10 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Paso 4 — plan de membresía (opcional, solo al crear)
-  const [selectedPlanId, setSelectedPlanId] = useState<number | ''>('');
+  // Paso 4 — plan de membresía / Paso 5 — registrar pago (opcional, solo al crear)
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
 
   const handlePhotoConfirm = (dataUrl: string, descriptor: number[] | null) => {
     setCapturedPhoto(dataUrl);
@@ -158,17 +165,19 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
             plan_id: selectedPlanId,
             method,
             amount: amount || undefined,
+            notes,
           });
           qc.invalidateQueries({ queryKey: ['billing', 'expiring'] });
           qc.invalidateQueries({ queryKey: ['billing', 'summary'] });
+          qc.invalidateQueries({ queryKey: ['billing', 'payments'] });
           showToast('Miembro creado y plan asignado.');
         } else {
           showToast('Miembro creado correctamente.');
         }
       }
       onClose();
-    } catch {
-      setError('Error al guardar el miembro. Verifica los datos e intenta de nuevo.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Error al guardar el miembro. Verifica los datos e intenta de nuevo.'));
     } finally {
       setSubmitting(false);
     }
@@ -233,8 +242,8 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
         />
       )}
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-        <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[28px] bg-surface shadow-2xl">
+      <div className={md3ModalBackdropClass}>
+        <div className={`w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[28px] bg-surface shadow-2xl ${md3ModalPanelAnimClass}`}>
           <div className="p-6 sm:p-8">
             <div className="mb-5 flex items-center justify-between gap-4">
               <h3 className={md3TitleMediumClass}>
@@ -432,7 +441,11 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
                     <select
                       className={`${md3TextFieldClass} appearance-none`}
                       value={selectedPlanId}
-                      onChange={(e) => setSelectedPlanId(e.target.value ? Number(e.target.value) : '')}
+                      onChange={(e) => {
+                        const id = e.target.value ? Number(e.target.value) : '';
+                        setSelectedPlanId(id);
+                        setAmount(id === '' ? '' : plans.find((p) => p.id === id)?.price ?? '');
+                      }}
                     >
                       <option value="">Omitir por ahora</option>
                       {plans.map((p) => (
@@ -440,35 +453,46 @@ export const MemberFormModal = ({ editing, onClose }: Props) => {
                       ))}
                     </select>
                   </div>
+                </div>
+              )}
 
-                  {selectedPlanId !== '' && (
-                    <>
-                      <div>
-                        <label className={md3InputLabelClass}>Método de pago</label>
-                        <select
-                          className={`${md3TextFieldClass} appearance-none`}
-                          value={method}
-                          onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-                        >
-                          {Object.entries(PAYMENT_METHOD_LABELS).map(([val, lbl]) => (
-                            <option key={val} value={val}>{lbl}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={md3InputLabelClass}>Monto</label>
-                        <input
-                          className={md3TextFieldClass}
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          placeholder={selectedPlan ? formatMoney(selectedPlan.price) : ''}
-                        />
-                        <p className={`mt-1 text-on-surface-variant ${md3BodyMediumClass}`}>
-                          Déjalo vacío para usar el precio del plan.
-                        </p>
-                      </div>
-                    </>
-                  )}
+              {/* Paso 5: Registrar pago (solo si se eligió un plan en el paso 4) */}
+              {currentStep === 'Registrar pago' && (
+                <div className="space-y-4">
+                  <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+                    Registra el pago inicial de la membresía de {selectedPlan?.name ?? 'este plan'}.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={md3InputLabelClass}>Método de pago</label>
+                      <select
+                        className={`${md3TextFieldClass} appearance-none`}
+                        value={method}
+                        onChange={(e) => setMethod(e.target.value as PaymentMethod)}
+                      >
+                        {Object.entries(PAYMENT_METHOD_LABELS).map(([val, lbl]) => (
+                          <option key={val} value={val}>{lbl}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={md3InputLabelClass}>Monto</label>
+                      <CurrencyInput
+                        value={amount}
+                        onChange={setAmount}
+                        placeholder={selectedPlan ? formatMoney(selectedPlan.price) : ''}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={md3InputLabelClass}>Notas</label>
+                    <input
+                      className={md3TextFieldClass}
+                      placeholder="Opcional"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </div>
                 </div>
               )}
 

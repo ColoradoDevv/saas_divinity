@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 
+from django.core.mail import get_connection
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -259,6 +261,7 @@ class SessionEnrollView(APIView):
     """POST /api/classes/sessions/<id>/enroll/ — body: {member_id}"""
     permission_classes = [_AUTH, _MOD, _CAN_CREATE]
 
+    @transaction.atomic
     def post(self, request, pk):
         org_id = _org_id(request)
         serializer = EnrollMemberSerializer(data=request.data)
@@ -290,14 +293,22 @@ class SessionCancelView(APIView):
         except SessionNotFoundError:
             raise NotFound(detail='Sesión no encontrada.')
 
-        for enrollment in notified_enrollments:
-            send_class_cancelled_email(
-                to_email=enrollment.member_email,
-                first_name=enrollment.member_name.split(' ')[0] if enrollment.member_name else '',
-                class_name=session.class_type_name,
-                session_date=session.date,
-                session_time=session.start_time,
-            )
+        # Una sola conexión SMTP reutilizada para todos los avisos de esta cancelación,
+        # en vez de abrir/cerrar una por miembro inscrito.
+        connection = get_connection()
+        connection.open()
+        try:
+            for enrollment in notified_enrollments:
+                send_class_cancelled_email(
+                    to_email=enrollment.member_email,
+                    first_name=enrollment.member_name.split(' ')[0] if enrollment.member_name else '',
+                    class_name=session.class_type_name,
+                    session_date=session.date,
+                    session_time=session.start_time,
+                    connection=connection,
+                )
+        finally:
+            connection.close()
         return Response(SessionReadSerializer(session.to_primitives()).data)
 
 

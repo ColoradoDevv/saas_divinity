@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
+from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 from django.http import HttpResponse
@@ -183,11 +184,20 @@ class RenewMembershipView(APIView):
             registered_by_id=request.user.id if request.user.is_authenticated else None,
         )
         try:
-            subscription, payment = RenewMembershipService(DjangoORMBillingRepository()).execute(dto)
+            with transaction.atomic():
+                subscription, payment = RenewMembershipService(DjangoORMBillingRepository()).execute(dto)
         except PlanNotFoundError:
             raise NotFound(detail='Plan no encontrado o inactivo.')
         except PlanValidationError as exc:
             raise ValidationError(detail=str(exc))
+        except IntegrityError:
+            # Dos renovaciones concurrentes para el mismo miembro (doble clic, dos
+            # cajeros a la vez): la segunda choca con la restricción de "una sola
+            # suscripción activa por miembro" — devolvemos un error claro en vez
+            # de un 500.
+            raise ValidationError(
+                detail='Ya se registró un cobro para este miembro justo ahora. Actualiza la página e intenta de nuevo.'
+            )
 
         notify(
             org_id, 'payment_received',

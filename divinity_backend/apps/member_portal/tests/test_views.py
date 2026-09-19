@@ -100,6 +100,39 @@ class TestActivatePortalAccessView:
         assert member.user_id == first_user_id
         assert MemberPortalInvitationModel.objects.filter(member=member).count() == 2
 
+    def test_resend_invalidates_previous_invitation(self, admin_client, org, make_member):
+        member = make_member(org, email='resend@example.com')
+        admin_client.post(f'/api/members/{member.id}/portal-access/')
+        first_invitation = MemberPortalInvitationModel.objects.get(member=member)
+
+        admin_client.post(f'/api/members/{member.id}/portal-access/')
+        first_invitation.refresh_from_db()
+        assert first_invitation.used is True
+
+        second_invitation = MemberPortalInvitationModel.objects.exclude(pk=first_invitation.pk).get(member=member)
+        assert second_invitation.used is False
+
+        # El link viejo ya no debe servir para tomar la cuenta.
+        client = APIClient()
+        resp = client.post('/api/member-portal/accept-invite/', {
+            'token': str(first_invitation.token), 'password': 'algo12345',
+        }, format='json')
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_activate_rejects_email_already_used_by_another_members_portal_account(
+        self, admin_client, org, make_org, make_member,
+    ):
+        other_org = make_org(name='Other Org', slug='other-org')
+        _make_portal_member(other_org, make_member, email='shared@example.com')
+
+        member = make_member(org, email='shared@example.com')
+        resp = admin_client.post(f'/api/members/{member.id}/portal-access/')
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'ya tiene acceso al portal' in str(resp.data)
+
+        member.refresh_from_db()
+        assert member.user_id is None
+
     def test_manager_cannot_activate(self, api_client, make_user, org, make_membership, make_member):
         member = make_member(org)
         user = make_user(username='mgr2@ex.com', email='mgr2@ex.com', password='p!')
@@ -139,6 +172,20 @@ class TestAcceptInviteAndLogin:
         client = APIClient()
         resp = client.post('/api/member-portal/login/', {
             'email': 'wp@example.com', 'password': 'incorrecta',
+        }, format='json')
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_login_with_ambiguous_duplicate_email_fails_cleanly(self, org, make_org, make_member):
+        """ActivatePortalAccessView ya bloquea este caso, pero si dos cuentas de
+        portal terminan compartiendo el email (dato preexistente, migración, etc.),
+        el login no debe romperse con un 500 por MultipleObjectsReturned."""
+        other_org = make_org(name='Dup Org', slug='dup-org')
+        _make_portal_member(org, make_member, email='dup@example.com', password='clave1234')
+        _make_portal_member(other_org, make_member, email='dup@example.com', password='clave1234')
+
+        client = APIClient()
+        resp = client.post('/api/member-portal/login/', {
+            'email': 'dup@example.com', 'password': 'clave1234',
         }, format='json')
         assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 

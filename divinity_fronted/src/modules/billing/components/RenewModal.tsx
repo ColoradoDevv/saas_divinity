@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 
+import { CurrencyInput } from '@/shared/components/CurrencyInput';
 import { useCurrencyFormatter } from '@/shared/hooks/useCurrencyFormatter';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3FilledButtonClass,
   md3InputLabelClass,
+  md3ModalBackdropClass,
+  md3ModalPanelAnimClass,
   md3OutlinedButtonClass,
   md3SurfaceClass,
   md3TextFieldClass,
@@ -46,14 +50,14 @@ export const RenewModal = ({ memberId, onClose }: Props) => {
     try {
       await renew.mutateAsync({ member_id: memberId, plan_id: planId, method, amount: amount || undefined, notes });
       onClose();
-    } catch {
-      setError('Error al renovar la membresía. Verifica los datos.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Error al renovar la membresía. Verifica los datos.'));
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-md shadow-2xl`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-md shadow-2xl`}>
         <div className="p-6 sm:p-8">
           <div className="mb-6 flex items-center justify-between gap-4">
             <h3 className={md3TitleMediumClass}>Renovar membresía</h3>
@@ -88,8 +92,7 @@ export const RenewModal = ({ memberId, onClose }: Props) => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={md3InputLabelClass}>Monto cobrado</label>
-                  <input type="number" min="0" step="0.01" className={md3TextFieldClass}
-                    value={amount} onChange={(e) => setAmount(e.target.value)} />
+                  <CurrencyInput value={amount} onChange={setAmount} />
                 </div>
                 <div>
                   <label className={md3InputLabelClass}>Método de pago</label>

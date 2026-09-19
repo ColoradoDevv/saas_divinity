@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { ScrollableTableWrapper } from '@/shared/components/ScrollableTableWrapper';
 import {
   md3BodyMediumClass,
   md3BodySmallClass,
@@ -99,7 +100,7 @@ export const AuditPage = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollableTableWrapper>
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-outline-variant/70 bg-surface-container">
@@ -138,7 +139,7 @@ export const AuditPage = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollableTableWrapper>
         )}
       </section>
 

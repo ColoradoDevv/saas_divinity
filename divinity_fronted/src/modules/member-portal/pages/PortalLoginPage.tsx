@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
 import { useMemberPortalAuthStore } from '@/app/store/memberPortalAuth';
+import { PasswordInput } from '@/shared/components/PasswordInput';
 import {
   md3BodyMediumClass,
   md3ErrorBannerClass,
@@ -12,6 +13,7 @@ import {
   md3SurfaceClass,
   md3TextFieldClass,
 } from '@/shared/ui/material';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import { usePortalLogin } from '../hooks/useMemberPortal';
 
 export const PortalLoginPage = () => {
@@ -31,8 +33,8 @@ export const PortalLoginPage = () => {
     try {
       await login.mutateAsync({ email, password });
       navigate('/portal', { replace: true });
-    } catch {
-      setError('Correo o contraseña incorrectos.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Correo o contraseña incorrectos.'));
     }
   };
 
@@ -58,9 +60,9 @@ export const PortalLoginPage = () => {
           </div>
           <div>
             <label className={md3InputLabelClass}>Contraseña</label>
-            <input
+            <PasswordInput
               required
-              type="password"
+              autoComplete="current-password"
               className={md3TextFieldClass}
               value={password}
               onChange={(e) => setPassword(e.target.value)}

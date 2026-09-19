@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateMemberData, UpdateMemberData } from '../types';
 import { memberService } from '../services/memberService';
 
@@ -6,6 +6,18 @@ export const useMembers = (page = 1, search = '', status = '') =>
   useQuery({
     queryKey: ['members', page, search, status],
     queryFn: () => memberService.getMembers(page, search, status),
+  });
+
+/** Accumulates pages (for a "Cargar más" list) instead of replacing them, unlike `useMembers`. */
+export const useInfiniteMembers = (search = '', status = '') =>
+  useInfiniteQuery({
+    queryKey: ['members', 'infinite', search, status],
+    queryFn: ({ pageParam }) => memberService.getMembers(pageParam, search, status),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((sum, p) => sum + p.results.length, 0);
+      return loaded < lastPage.count ? allPages.length + 1 : undefined;
+    },
   });
 
 export const useMember = (id: number) =>

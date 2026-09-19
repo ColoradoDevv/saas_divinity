@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 
 import { useOrgStore } from '@/app/store/org';
 import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3ErrorBannerClass,
   md3FilledButtonClass,
   md3HeadlineSmallClass,
   md3InputLabelClass,
+  md3ModalBackdropClass,
+  md3ModalPanelAnimClass,
   md3OutlinedButtonClass,
   md3OverlineClass,
   md3SurfaceClass,
@@ -40,8 +43,8 @@ const DeviceKeyReveal = ({ deviceKey, onClose }: { deviceKey: string; onClose: (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-lg p-6 sm:p-8`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-lg p-6 sm:p-8`}>
         <h3 className={md3TitleMediumClass}>Clave del dispositivo</h3>
         <p className={`mt-2 text-error ${md3BodyMediumClass}`}>
           Guárdala ahora — no se puede volver a ver. Si la pierdes, tendrás que rotarla (invalida la anterior).
@@ -118,8 +121,8 @@ const NewDeviceForm = ({ onCreated, onCancel }: { onCreated: (key: string) => vo
     try {
       const device = await createDevice.mutateAsync(name);
       onCreated(device.device_key);
-    } catch {
-      setError('No se pudo crear el dispositivo.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'No se pudo crear el dispositivo.'));
     }
   };
 
@@ -167,13 +170,21 @@ export const DeviceSettingsPage = () => {
   if (role && role !== 'admin') return null;
 
   const handleRotate = async (id: number) => {
-    const device = await rotateKey.mutateAsync(id);
-    setRevealKey(device.device_key);
+    try {
+      const device = await rotateKey.mutateAsync(id);
+      setRevealKey(device.device_key);
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo rotar la clave del dispositivo.'), 'error');
+    }
   };
 
   const handleToggleActive = async (id: number, isActive: boolean) => {
-    await updateDevice.mutateAsync({ id, data: { is_active: !isActive } });
-    showToast(isActive ? 'Dispositivo desactivado.' : 'Dispositivo reactivado.');
+    try {
+      await updateDevice.mutateAsync({ id, data: { is_active: !isActive } });
+      showToast(isActive ? 'Dispositivo desactivado.' : 'Dispositivo reactivado.');
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo actualizar el dispositivo.'), 'error');
+    }
   };
 
   return (

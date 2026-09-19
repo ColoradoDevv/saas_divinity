@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useOrgStore } from '@/app/store/org';
 import { useAttendanceByWeekday } from '@/modules/attendance/hooks/useAttendance';
@@ -12,8 +12,10 @@ import {
 import type { ReportExportFormat } from '@/modules/billing/types';
 import { BarChart } from '@/shared/components/BarChart';
 import { PlaceholderPage } from '@/shared/components/PlaceholderPage';
+import { ScrollableTableWrapper } from '@/shared/components/ScrollableTableWrapper';
 import { useCurrencyFormatter } from '@/shared/hooks/useCurrencyFormatter';
 import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessageAsync } from '@/shared/utils/apiError';
 import { toISODate } from '@/shared/utils/date';
 import { downloadBlob } from '@/shared/utils/download';
 import {
@@ -45,21 +47,43 @@ const defaultDateFrom = () => {
   return toISODate(d);
 };
 
+const HISTORY_PAGE_SIZE = 5;
+
 const DailyHistorySection = () => {
   const [dateFrom, setDateFrom] = useState(defaultDateFrom);
   const [dateTo, setDateTo] = useState(defaultDateTo);
+  const [page, setPage] = useState(1);
   const { data: dailyStats = [], isLoading } = useDailyStats(dateFrom, dateTo);
   const downloadExport = useDownloadReportExport();
   const formatMoney = useCurrencyFormatter();
   const showToast = useToast();
+
+  // Más reciente primero; se pagina de a HISTORY_PAGE_SIZE en vez de listar
+  // hasta 366 filas de una — el rango de fechas puede llegar a cubrir un año.
+  const sortedStats = useMemo(() => [...dailyStats].reverse(), [dailyStats]);
+  const totalPages = Math.max(1, Math.ceil(sortedStats.length / HISTORY_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = sortedStats.slice(
+    (currentPage - 1) * HISTORY_PAGE_SIZE,
+    currentPage * HISTORY_PAGE_SIZE,
+  );
+
+  const handleDateFromChange = (value: string) => {
+    setDateFrom(value);
+    setPage(1);
+  };
+  const handleDateToChange = (value: string) => {
+    setDateTo(value);
+    setPage(1);
+  };
 
   const handleDownload = async (exportFormat: ReportExportFormat) => {
     try {
       const blob = await downloadExport.mutateAsync({ exportFormat, dateFrom, dateTo });
       downloadBlob(blob, `reporte-${dateFrom}_a_${dateTo}.${exportFormat}`);
       showToast('Descarga lista.');
-    } catch {
-      showToast('No se pudo generar la descarga. Intenta de nuevo.', 'error');
+    } catch (err) {
+      showToast(await getApiErrorMessageAsync(err, 'No se pudo generar la descarga. Intenta de nuevo.'), 'error');
     }
   };
 
@@ -76,12 +100,12 @@ const DailyHistorySection = () => {
           <div>
             <label className={md3InputLabelClass}>Desde</label>
             <input type="date" className={md3TextFieldClass} value={dateFrom}
-              max={dateTo} onChange={(e) => setDateFrom(e.target.value)} />
+              max={dateTo} onChange={(e) => handleDateFromChange(e.target.value)} />
           </div>
           <div>
             <label className={md3InputLabelClass}>Hasta</label>
             <input type="date" className={md3TextFieldClass} value={dateTo}
-              min={dateFrom} max={defaultDateTo()} onChange={(e) => setDateTo(e.target.value)} />
+              min={dateFrom} max={defaultDateTo()} onChange={(e) => handleDateToChange(e.target.value)} />
           </div>
         </div>
       </div>
@@ -106,28 +130,48 @@ const DailyHistorySection = () => {
           No hay datos en el rango seleccionado.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-[16px] border border-outline-variant">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-outline-variant bg-surface-container">
-                <th className="px-4 py-3 text-left font-semibold text-on-surface-variant">Fecha</th>
-                <th className="px-4 py-3 text-right font-semibold text-on-surface-variant">Ingresos</th>
-                <th className="px-4 py-3 text-right font-semibold text-on-surface-variant">Check-ins</th>
-                <th className="px-4 py-3 text-right font-semibold text-on-surface-variant">Miembros nuevos</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/40">
-              {[...dailyStats].reverse().map((row) => (
-                <tr key={row.date} className="hover:bg-on-surface/4 transition">
-                  <td className="px-4 py-2.5 text-on-surface">{row.date}</td>
-                  <td className="px-4 py-2.5 text-right text-on-surface">{formatMoney(row.revenue)}</td>
-                  <td className="px-4 py-2.5 text-right text-on-surface-variant">{row.checkins}</td>
-                  <td className="px-4 py-2.5 text-right text-on-surface-variant">{row.new_members}</td>
+        <>
+          <ScrollableTableWrapper className="rounded-[16px] border border-outline-variant">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-outline-variant bg-surface-container">
+                  <th className="px-4 py-3 text-left font-semibold text-on-surface-variant">Fecha</th>
+                  <th className="px-4 py-3 text-right font-semibold text-on-surface-variant">Ingresos</th>
+                  <th className="px-4 py-3 text-right font-semibold text-on-surface-variant">Check-ins</th>
+                  <th className="px-4 py-3 text-right font-semibold text-on-surface-variant">Miembros nuevos</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/40">
+                {pageRows.map((row) => (
+                  <tr key={row.date} className="hover:bg-on-surface/4 transition">
+                    <td className="px-4 py-2.5 text-on-surface">{row.date}</td>
+                    <td className="px-4 py-2.5 text-right text-on-surface">{formatMoney(row.revenue)}</td>
+                    <td className="px-4 py-2.5 text-right text-on-surface-variant">{row.checkins}</td>
+                    <td className="px-4 py-2.5 text-right text-on-surface-variant">{row.new_members}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ScrollableTableWrapper>
+
+          {totalPages > 1 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
+                Página {currentPage} de {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <button type="button" className={md3OutlinedButtonClass}
+                  disabled={currentPage === 1} onClick={() => setPage((p) => p - 1)}>
+                  Anterior
+                </button>
+                <button type="button" className={md3OutlinedButtonClass}
+                  disabled={currentPage === totalPages} onClick={() => setPage((p) => p + 1)}>
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

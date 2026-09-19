@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useOrgStore } from '@/app/store/org';
 import { useWorkers } from '@/modules/workers/hooks/useWorkers';
 import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3FilledButtonClass,
@@ -56,8 +57,8 @@ const ClassTypeForm = ({ editing, onDone }: { editing: ClassType | null; onDone:
       }
       showToast(editing ? 'Tipo de clase actualizado.' : 'Tipo de clase creado.');
       onDone();
-    } catch {
-      setError('Error al guardar. Verifica los datos e intenta de nuevo.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Error al guardar. Verifica los datos e intenta de nuevo.'));
     }
   };
 
@@ -133,8 +134,8 @@ const ScheduleForm = ({ classTypes, onDone }: { classTypes: ClassType[]; onDone:
       await createSchedule.mutateAsync({ class_type_id: classTypeId, weekday, start_time: `${startTime}:00` });
       showToast('Horario creado.');
       onDone();
-    } catch {
-      setError('Error al guardar el horario.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Error al guardar el horario.'));
     }
   };
 
@@ -263,7 +264,14 @@ export const ClassSettingsPage = () => {
                   {c.is_active && (
                     <button
                       type="button"
-                      onClick={async () => { await deactivateClassType.mutateAsync(c.id); showToast('Tipo de clase desactivado.'); }}
+                      onClick={async () => {
+                        try {
+                          await deactivateClassType.mutateAsync(c.id);
+                          showToast('Tipo de clase desactivado.');
+                        } catch (err) {
+                          showToast(getApiErrorMessage(err, 'No se pudo desactivar el tipo de clase.'), 'error');
+                        }
+                      }}
                       className="rounded-full px-3 py-1.5 text-xs font-medium text-error hover:bg-error/8 transition"
                     >
                       Desactivar
@@ -322,7 +330,14 @@ export const ClassSettingsPage = () => {
                     {s.is_active && (
                       <button
                         type="button"
-                        onClick={async () => { await deactivateSchedule.mutateAsync(s.id); showToast('Horario desactivado.'); }}
+                        onClick={async () => {
+                          try {
+                            await deactivateSchedule.mutateAsync(s.id);
+                            showToast('Horario desactivado.');
+                          } catch (err) {
+                            showToast(getApiErrorMessage(err, 'No se pudo desactivar el horario.'), 'error');
+                          }
+                        }}
                         className="flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-error hover:bg-error/8 transition"
                       >
                         Desactivar

@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useModulePermissions } from '@/shared/hooks/useModulePermission';
+import { useToast } from '@/shared/hooks/useToast';
+import { ScrollableTableWrapper } from '@/shared/components/ScrollableTableWrapper';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3FilledButtonClass,
@@ -13,7 +16,7 @@ import {
   md3TextFieldClass,
 } from '@/shared/ui/material';
 import { MemberFormModal } from '../components/MemberFormModal';
-import { useDeactivateMember, useMembers } from '../hooks/useMembers';
+import { useDeactivateMember, useInfiniteMembers } from '../hooks/useMembers';
 import type { Member, MemberStatus } from '../types';
 
 const STATUS_CONFIG: Record<MemberStatus, { label: string; cls: string }> = {
@@ -35,33 +38,29 @@ export const MembersPage = () => {
   const navigate = useNavigate();
   const { canCreate, canEdit, canDelete } = useModulePermissions('members');
 
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<number | null>(null);
 
-  const { data, isLoading } = useMembers(page, search, statusFilter);
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteMembers(search, statusFilter);
   const deactivate = useDeactivateMember();
+  const showToast = useToast();
 
-  const members = data?.results ?? [];
-  const total = data?.count ?? 0;
-  const hasMore = members.length < total;
+  const members = data?.pages.flatMap((p) => p.results) ?? [];
+  const total = data?.pages[0]?.count ?? 0;
 
-  const handleSearchChange = (val: string) => {
-    setSearch(val);
-    setPage(1);
-  };
-
-  const handleStatusChange = (val: string) => {
-    setStatusFilter(val);
-    setPage(1);
-  };
+  const handleSearchChange = (val: string) => setSearch(val);
+  const handleStatusChange = (val: string) => setStatusFilter(val);
 
   const handleDeactivate = async (id: number) => {
-    await deactivate.mutateAsync(id);
-    setConfirmDeactivateId(null);
+    try {
+      await deactivate.mutateAsync(id);
+      setConfirmDeactivateId(null);
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo desactivar al miembro.'), 'error');
+    }
   };
 
   return (
@@ -135,7 +134,7 @@ export const MembersPage = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollableTableWrapper>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-outline-variant bg-surface-container">
@@ -209,17 +208,18 @@ export const MembersPage = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollableTableWrapper>
         )}
 
-        {hasMore && (
+        {hasNextPage && (
           <div className="flex justify-center border-t border-outline-variant p-4">
             <button
               type="button"
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
               className="rounded-full border border-outline-variant px-6 py-2 text-sm font-medium text-on-surface-variant hover:bg-on-surface/8 transition"
             >
-              Cargar más
+              {isFetchingNextPage ? 'Cargando...' : 'Cargar más'}
             </button>
           </div>
         )}

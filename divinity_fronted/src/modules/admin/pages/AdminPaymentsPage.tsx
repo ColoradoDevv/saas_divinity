@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/shared/api/api';
+import { ScrollableTableWrapper } from '@/shared/components/ScrollableTableWrapper';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3FilledButtonClass,
   md3HeadlineMediumClass,
   md3InputLabelClass,
+  md3ModalBackdropClass,
+  md3ModalPanelAnimClass,
   md3OutlinedButtonClass,
   md3OverlineClass,
   md3SurfaceClass,
@@ -101,8 +105,8 @@ const PaymentModal = ({ org, onClose }: { org: OrgSummary; onClose: () => void }
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-sm p-6 shadow-2xl`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-sm p-6 shadow-2xl`}>
         <h3 className={`mb-4 ${md3TitleMediumClass}`}>Estado de pago — {org.name}</h3>
 
         <div className="space-y-4">
@@ -146,6 +150,12 @@ const PaymentModal = ({ org, onClose }: { org: OrgSummary; onClose: () => void }
             />
           </div>
         </div>
+
+        {mutation.isError && (
+          <p className="mt-4 text-sm text-error">
+            {getApiErrorMessage(mutation.error, 'No se pudo guardar el estado de pago.')}
+          </p>
+        )}
 
         <div className="mt-6 flex gap-3">
           <button
@@ -244,7 +254,7 @@ export const AdminPaymentsPage = () => {
             No hay empresas en esta categoría.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollableTableWrapper>
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-outline-variant bg-surface-container">
@@ -292,7 +302,7 @@ export const AdminPaymentsPage = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollableTableWrapper>
         )}
       </section>
     </div>

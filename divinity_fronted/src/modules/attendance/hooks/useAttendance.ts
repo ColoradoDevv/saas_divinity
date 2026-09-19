@@ -80,11 +80,12 @@ export const useCreateEnrollment = (deviceId: number) => {
   });
 };
 
-export const useDeleteEnrollment = (deviceId: number) => {
+export const useDeleteEnrollment = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (enrollmentId: number) => attendanceService.deleteEnrollment(deviceId, enrollmentId),
-    onSuccess: () => {
+    mutationFn: ({ deviceId, enrollmentId }: { deviceId: number; enrollmentId: number }) =>
+      attendanceService.deleteEnrollment(deviceId, enrollmentId),
+    onSuccess: (_, { deviceId }) => {
       qc.invalidateQueries({ queryKey: ['attendance', 'device-enrollments', deviceId] });
       qc.invalidateQueries({ queryKey: ['attendance', 'member-enrollments'] });
     },

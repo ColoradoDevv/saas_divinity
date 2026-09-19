@@ -4,6 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/shared/api/api';
 import { useAddonCatalog } from '@/shared/hooks/useAddonCatalog';
 import { useVerticalCatalog } from '@/shared/hooks/useVerticalCatalog';
+import { PasswordInput } from '@/shared/components/PasswordInput';
+import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3CardClass,
@@ -195,8 +198,8 @@ const PaymentModal = ({ org, onClose }: { org: OrgSummary; onClose: () => void }
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-sm p-6 shadow-2xl`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-sm p-6 shadow-2xl`}>
         <h3 className={`mb-4 ${md3TitleMediumClass}`}>Estado de pago — {org.name}</h3>
 
         <div className="space-y-4">
@@ -241,6 +244,12 @@ const PaymentModal = ({ org, onClose }: { org: OrgSummary; onClose: () => void }
           </div>
         </div>
 
+        {mutation.isError && (
+          <p className="mt-4 text-sm text-error">
+            {getApiErrorMessage(mutation.error, 'No se pudo guardar el estado de pago.')}
+          </p>
+        )}
+
         <div className="mt-6 flex gap-3">
           <button
             type="button"
@@ -271,6 +280,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => void }) => {
   const qc = useQueryClient();
+  const showToast = useToast();
   const { data: catalog } = useVerticalCatalog();
   const { data: addons = [] } = useAddonCatalog();
   const [tab, setTab] = useState<ManageTab>('general');
@@ -368,13 +378,13 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Drawer panel */}
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col bg-surface shadow-2xl">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col bg-surface shadow-2xl animate-slide-in-right">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-outline-variant px-6 py-4">
@@ -421,7 +431,9 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
           ) : tab === 'general' ? (
             <div className="space-y-5">
               {settingsMutation.isError && (
-                <div className={md3ErrorBannerClass}>Error al guardar los cambios.</div>
+                <div className={md3ErrorBannerClass}>
+                  {getApiErrorMessage(settingsMutation.error, 'Error al guardar los cambios.')}
+                </div>
               )}
 
               {/* Nombre */}
@@ -622,7 +634,9 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
                     <select
                       value={m.role}
                       onChange={(e) =>
-                        memberMutation.mutate({ orgId, userId: m.user_id, role: e.target.value })
+                        memberMutation.mutate({ orgId, userId: m.user_id, role: e.target.value }, {
+                          onError: (err) => showToast(getApiErrorMessage(err, 'No se pudo cambiar el rol.'), 'error'),
+                        })
                       }
                       className="rounded-full border border-outline-variant bg-surface-container px-3 py-1.5 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
                     >
@@ -633,7 +647,9 @@ const OrgManageDrawer = ({ orgId, onClose }: { orgId: number; onClose: () => voi
                     <button
                       type="button"
                       onClick={() =>
-                        memberMutation.mutate({ orgId, userId: m.user_id, is_active: !m.is_active })
+                        memberMutation.mutate({ orgId, userId: m.user_id, is_active: !m.is_active }, {
+                          onError: (err) => showToast(getApiErrorMessage(err, 'No se pudo actualizar el estado del miembro.'), 'error'),
+                        })
                       }
                       className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                         m.is_active
@@ -825,7 +841,7 @@ export const AdminOrganizationsPage = () => {
 
           {mutation.isError && (
             <div className={`${md3ErrorBannerClass} mb-4`}>
-              Error al crear la empresa. Verifica que el correo no esté en uso.
+              {getApiErrorMessage(mutation.error, 'Error al crear la empresa. Verifica que el correo no esté en uso.')}
             </div>
           )}
 
@@ -970,9 +986,8 @@ export const AdminOrganizationsPage = () => {
                 </div>
                 <div>
                   <label htmlFor="admin-password" className={md3InputLabelClass}>Contraseña</label>
-                  <input
+                  <PasswordInput
                     id="admin-password"
-                    type="password"
                     className={md3TextFieldClass}
                     required
                     minLength={8}

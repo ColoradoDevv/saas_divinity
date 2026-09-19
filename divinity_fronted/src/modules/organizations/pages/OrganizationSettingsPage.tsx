@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useOrgStore } from '@/app/store/org';
 import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import { CURRENCY_OPTIONS } from '@/shared/utils/currency';
 import {
   md3BodyMediumClass,
@@ -36,8 +37,12 @@ export const OrganizationSettingsPage = () => {
   if (role && role !== 'admin') return null;
 
   const handleSave = async () => {
-    await updateSettings.mutateAsync({ currency });
-    showToast('Cambios guardados.');
+    try {
+      await updateSettings.mutateAsync({ currency });
+      showToast('Cambios guardados.');
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudieron guardar los cambios.'), 'error');
+    }
   };
 
   return (

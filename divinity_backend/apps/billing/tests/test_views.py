@@ -77,6 +77,27 @@ class TestRenewMembershipView:
         }, format='json')
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_concurrent_renew_returns_clean_error_not_500(self, admin_client, org, make_member, make_plan, monkeypatch):
+        """Si dos renovaciones para el mismo miembro se cruzan (doble clic, dos
+        cajeros a la vez), la segunda choca con la restricción de "una sola
+        suscripción activa por miembro" — debe verse como un 400 claro, no un 500."""
+        from infrastructure.persistence.billing_repositories import DjangoORMBillingRepository
+
+        member = make_member(org)
+        plan = make_plan(org)
+        admin_client.post(self.url, {
+            'member_id': member.id, 'plan_id': plan.id, 'method': 'cash',
+        }, format='json')
+
+        # Simula que el cancel de la suscripción anterior no tuvo efecto para
+        # cuando este segundo request intenta crear la suya (la carrera real).
+        monkeypatch.setattr(DjangoORMBillingRepository, 'cancel_subscription', lambda self, *a, **k: None)
+
+        resp = admin_client.post(self.url, {
+            'member_id': member.id, 'plan_id': plan.id, 'method': 'cash',
+        }, format='json')
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
 
 @pytest.mark.django_db
 class TestFreezeResumeViews:

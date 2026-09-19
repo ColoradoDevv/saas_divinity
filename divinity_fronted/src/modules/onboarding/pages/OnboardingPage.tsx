@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { applyMembership, useOrgStore } from '@/app/store/org';
 import { api } from '@/shared/api/api';
 import { useVerticalCatalog } from '@/shared/hooks/useVerticalCatalog';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyLargeClass,
   md3BodyMediumClass,
@@ -94,8 +95,8 @@ const LogoStep = ({
     try {
       const url = await uploadLogo(file);
       onLogoUrl(url);
-    } catch {
-      setUploadError('Error al subir el logo. Intenta de nuevo.');
+    } catch (err) {
+      setUploadError(getApiErrorMessage(err, 'Error al subir el logo. Intenta de nuevo.'));
       setPreview(logoUrl);
     } finally {
       setUploading(false);
@@ -339,7 +340,7 @@ export const OnboardingPage = () => {
 
       {mutation.isError && (
         <p className={`text-center text-error ${md3BodyMediumClass}`}>
-          Error al guardar la configuración. Intenta de nuevo.
+          {getApiErrorMessage(mutation.error, 'Error al guardar la configuración. Intenta de nuevo.')}
         </p>
       )}
 

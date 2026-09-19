@@ -4,6 +4,8 @@ import { useOrgStore } from '@/app/store/org';
 import { useMembers } from '@/modules/members/hooks/useMembers';
 import type { Member } from '@/modules/members/types';
 import { PlaceholderPage } from '@/shared/components/PlaceholderPage';
+import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3FilledButtonClass,
@@ -43,18 +45,20 @@ const CodeCheckInPanel = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const checkIn = useCheckIn();
   const [result, setResult] = useState<{ name: string; status: SubscriptionCheckStatus } | null>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     if (!code.trim()) return;
+    setError('');
     try {
       const res = await checkIn.mutateAsync({ method: 'code', member_code: code.trim() });
       setResult({ name: res.checkin.member_name, status: res.subscription_status });
-    } catch {
+    } catch (err) {
       setResult(null);
-      checkIn.reset();
+      setError(getApiErrorMessage(err, 'No se encontró un miembro con ese código.'));
     } finally {
       setCode('');
       inputRef.current?.focus();
@@ -80,9 +84,7 @@ const CodeCheckInPanel = () => {
         </button>
       </form>
 
-      {checkIn.isError && (
-        <p className="text-error">No se encontró un miembro con ese código.</p>
-      )}
+      {error && <p className="text-error">{error}</p>}
 
       {result && (
         <div className={`rounded-[16px] p-5 ${RESULT_CONFIG[result.status].cls}`}>
@@ -101,16 +103,19 @@ const ManualCheckInPanel = () => {
   const { data } = useMembers(1, search, 'active');
   const checkIn = useCheckIn();
   const [result, setResult] = useState<{ id: number; name: string; status: SubscriptionCheckStatus } | null>(null);
+  const [error, setError] = useState('');
 
   const members = data?.results ?? [];
 
   const handlePick = async (memberId: number, name: string) => {
+    setError('');
     try {
       const res = await checkIn.mutateAsync({ method: 'manual', member_id: memberId });
       setResult({ id: memberId, name, status: res.subscription_status });
       setSearch('');
-    } catch {
+    } catch (err) {
       setResult(null);
+      setError(getApiErrorMessage(err, 'No se pudo registrar el check-in.'));
     }
   };
 
@@ -145,6 +150,8 @@ const ManualCheckInPanel = () => {
         </div>
       )}
 
+      {error && <p className="text-error">{error}</p>}
+
       {result && (
         <div className={`rounded-[16px] p-5 ${RESULT_CONFIG[result.status].cls}`}>
           <p className="text-lg font-semibold">{result.name}</p>
@@ -157,12 +164,13 @@ const ManualCheckInPanel = () => {
 
 // ─── Tab: reconocimiento facial (verificación 1:1) ────────────────────────────
 
-type FaceStatus = 'idle' | 'no_descriptor' | 'camera' | 'checking' | 'match' | 'no_match';
+type FaceStatus = 'idle' | 'no_descriptor' | 'camera_error' | 'camera' | 'checking' | 'match' | 'no_match';
 
 const FaceCheckInPanel = () => {
   const [search, setSearch] = useState('');
   const { data } = useMembers(1, search, 'active');
   const checkIn = useCheckIn();
+  const showToast = useToast();
 
   const [selected, setSelected] = useState<Member | null>(null);
   const [faceStatus, setFaceStatus] = useState<FaceStatus>('idle');
@@ -194,7 +202,7 @@ const FaceCheckInPanel = () => {
       if (videoRef.current) videoRef.current.srcObject = stream;
       setFaceStatus('camera');
     } catch {
-      setFaceStatus('no_descriptor');
+      setFaceStatus('camera_error');
     }
   };
 
@@ -217,6 +225,8 @@ const FaceCheckInPanel = () => {
     try {
       const res = await checkIn.mutateAsync({ method: 'face', member_id: selected.id });
       setResult(res.subscription_status);
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo registrar el check-in.'), 'error');
     } finally {
       stopCamera();
       setSelected(null);
@@ -266,6 +276,11 @@ const FaceCheckInPanel = () => {
           {faceStatus === 'no_descriptor' ? (
             <p className="text-error">
               Este miembro no tiene rostro registrado (falta capturarle una foto en su ficha).
+            </p>
+          ) : faceStatus === 'camera_error' ? (
+            <p className="text-error">
+              No se pudo acceder a la cámara. Revisa que el navegador tenga permiso de cámara y que ningún otro
+              programa la esté usando, luego intenta de nuevo.
             </p>
           ) : (
             <div className="relative mx-auto aspect-[4/3] max-w-sm overflow-hidden rounded-[16px] bg-surface-container">

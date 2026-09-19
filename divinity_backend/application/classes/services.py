@@ -164,7 +164,10 @@ class EnrollMemberService:
         self.repository = repository
 
     def execute(self, dto: EnrollMemberDTO) -> ClassEnrollment:
-        session = self.repository.get_session_by_id(dto.session_id, dto.organization_id)
+        # Bloquea la fila de la sesión: dos inscripciones concurrentes deben serializarse
+        # para que ninguna lea el cupo disponible antes de que la otra confirme la suya
+        # (llamar dentro de una transacción — ver las vistas que invocan este servicio).
+        session = self.repository.get_session_by_id(dto.session_id, dto.organization_id, lock=True)
         if session is None:
             raise SessionNotFoundError('Sesión no encontrada.')
         if session.status == 'cancelled':

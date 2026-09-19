@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import loginBackground from '@/assets/images/bg.jpg';
 import imagotipoBlanco from '@/assets/images/brand/imagotipo-horizontal-blanco.svg';
 import { useAuthStore } from '@/app/store/auth';
+import { PasswordInput } from '@/shared/components/PasswordInput';
 import {
   md3BodyLargeClass,
   md3BodyMediumClass,
@@ -16,6 +17,7 @@ import {
   md3TextButtonClass,
   md3TextFieldClass,
 } from '@/shared/ui/material';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 
 import { useLogin } from '../hooks/useLogin';
 import type { LoginPayload } from '../types/auth';
@@ -24,55 +26,8 @@ interface LocationState {
   from?: { pathname?: string };
 }
 
-interface ErrorWithDetail {
-  response?: {
-    data?: {
-      detail?: string;
-    };
-  };
-}
-
-const getErrorMessage = (error: unknown): string => {
-  const detail = (error as ErrorWithDetail).response?.data?.detail;
-  if (typeof detail === 'string') return detail;
-  return 'No se pudo iniciar sesión. Verifica tus credenciales e intenta de nuevo.';
-};
-
-const EyeIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-const EyeOffIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-    <line x1="1" y1="1" x2="23" y2="23" />
-  </svg>
-);
+const getErrorMessage = (error: unknown): string =>
+  getApiErrorMessage(error, 'No se pudo iniciar sesión. Verifica tus credenciales e intenta de nuevo.');
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -82,7 +37,6 @@ export const LoginPage = () => {
 
   const [formData, setFormData] = useState<LoginPayload>({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   const locationState = location.state as LocationState | null;
   const redirectTo = locationState?.from?.pathname || '/dashboard';
@@ -146,32 +100,20 @@ export const LoginPage = () => {
             <label htmlFor="password" className={md3InputLabelClass}>
               Contraseña
             </label>
-            <div className="relative">
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-                className={md3TextFieldClass}
-                style={{ paddingRight: '3rem' }}
-                required
-                minLength={8}
-                maxLength={128}
-                aria-required="true"
-                aria-invalid={loginMutation.isError}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-on-surface-variant transition hover:bg-on-surface/8 hover:text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
-            </div>
+            <PasswordInput
+              id="password"
+              name="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+              className={md3TextFieldClass}
+              required
+              minLength={8}
+              maxLength={128}
+              aria-required="true"
+              aria-invalid={loginMutation.isError}
+            />
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

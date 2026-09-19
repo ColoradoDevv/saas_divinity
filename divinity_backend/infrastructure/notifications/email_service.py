@@ -12,15 +12,16 @@ from datetime import date
 from decimal import Decimal
 
 from django.core.mail import send_mail
+from django.core.mail.backends.base import BaseEmailBackend
 
 logger = logging.getLogger(__name__)
 
 
-def _send(subject: str, body: str, to_email: str) -> None:
+def _send(subject: str, body: str, to_email: str, *, connection: BaseEmailBackend | None = None) -> None:
     if not to_email:
         return
     try:
-        send_mail(subject=subject, message=body, from_email=None, recipient_list=[to_email])
+        send_mail(subject=subject, message=body, from_email=None, recipient_list=[to_email], connection=connection)
     except Exception:
         logger.exception('Error al enviar email a %s: %s', to_email, subject)
 
@@ -84,6 +85,7 @@ def send_portal_invite_email(
 
 def send_class_cancelled_email(
     *, to_email: str, first_name: str, class_name: str, session_date: date, session_time,
+    connection: BaseEmailBackend | None = None,
 ) -> None:
     _send(
         subject=f'Clase cancelada: {class_name}',
@@ -93,4 +95,5 @@ def send_class_cancelled_email(
             f'a las {session_time.strftime("%H:%M")} fue cancelada. Disculpá las molestias.'
         ),
         to_email=to_email,
+        connection=connection,
     )

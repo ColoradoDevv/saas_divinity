@@ -1,3 +1,4 @@
+import logging
 from datetime import date, timedelta
 
 from django.db import transaction
@@ -35,6 +36,8 @@ from infrastructure.persistence.class_repositories import DjangoORMClassReposito
 from .models import MemberPortalInvitationModel
 from .serializers import AcceptPortalInviteSerializer, MemberPortalLoginSerializer
 
+logger = logging.getLogger(__name__)
+
 _PORTAL_AUTH = [MemberPortalJWTAuthentication]
 _PORTAL_PERMS = [IsMemberPortalUser]
 
@@ -70,6 +73,13 @@ class MemberPortalLoginView(APIView):
                 user__email__iexact=d['email'], user__is_active=True,
             )
         except MemberModel.DoesNotExist:
+            raise AuthenticationFailed('Correo o contraseña incorrectos.')
+        except MemberModel.MultipleObjectsReturned:
+            # No debería pasar (ActivatePortalAccessView bloquea el correo duplicado
+            # al activar), pero si dos miembros de distintas organizaciones terminan
+            # compartiendo el mismo email de cuenta, no hay forma de saber a cuál
+            # login se refería — tratamos esto igual que "no encontrado".
+            logger.error('Login del portal con email ambiguo (múltiples cuentas): %s', d['email'])
             raise AuthenticationFailed('Correo o contraseña incorrectos.')
 
         if not member.user.check_password(d['password']):
@@ -107,8 +117,9 @@ class MemberPortalAcceptInviteView(APIView):
         member.user.set_password(d['password'])
         member.user.save(update_fields=['password'])
 
-        invitation.used = True
-        invitation.save(update_fields=['used'])
+        # Acepta esta invitación e invalida cualquier otra pendiente del mismo miembro
+        # (defensa en profundidad — normalmente ya no debería quedar ninguna otra).
+        MemberPortalInvitationModel.objects.filter(member=member, used=False).update(used=True)
 
         tokens = MemberPortalTokenProvider().create_token_pair(member)
         return Response(
@@ -209,6 +220,7 @@ class MemberPortalEnrollView(APIView):
     authentication_classes = _PORTAL_AUTH
     permission_classes = _PORTAL_PERMS
 
+    @transaction.atomic
     def post(self, request, pk):
         member = request.member
         repo = DjangoORMClassRepository()

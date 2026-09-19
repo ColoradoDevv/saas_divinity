@@ -8,7 +8,9 @@ import { applyMembership, useOrgStore } from '@/app/store/org';
 import { useThemeStore } from '@/app/store/theme';
 import { authService } from '@/modules/auth/services/authService';
 import { NotificationBell } from '@/modules/notifications/components/NotificationBell';
-import { md3PageClass } from '@/shared/ui/material';
+import { useToast } from '@/shared/hooks/useToast';
+import { md3NeutralChipClass, md3PageClass } from '@/shared/ui/material';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import { resolveMediaUrl } from '@/shared/utils/media';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -129,6 +131,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const role = useOrgStore((state) => state.role);
   const clearOrganization = useOrgStore((state) => state.clearOrganization);
   const isDark = useThemeStore((state) => state.isDark);
+  const showToast = useToast();
   const [isSwitching, setIsSwitching] = useState(false);
 
   const allowedModules = useOrgStore((state) => state.allowedModules);
@@ -160,6 +163,8 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       const orgs = await authService.fetchOrganizations();
       setOrganizations(orgs);
       navigate('/dashboard', { replace: true });
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo cambiar de organización.'), 'error');
     } finally {
       setIsSwitching(false);
     }
@@ -238,13 +243,18 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       {/* Divider */}
       <div className="mx-4 h-px bg-outline-variant/60" />
 
+      {/* Módulos + Configuración: única zona que scrollea cuando hay muchos
+          ítems habilitados — min-h-0 es necesario para que un hijo flex
+          pueda encogerse y mostrar scroll en vez de desbordar el sidebar y
+          empujar la tarjeta de usuario fuera de la pantalla. */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
       {/* Navigation label */}
       <p className="mx-5 mt-5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant/70">
         Módulos
       </p>
 
       {/* Nav items */}
-      <nav className="flex-1 space-y-0.5 px-3" aria-label="Navegación principal">
+      <nav className="space-y-0.5 px-3" aria-label="Navegación principal">
         {navigation.map(({ to, label }) => {
           const Icon = NavIcons[to as keyof typeof NavIcons];
           return (
@@ -255,7 +265,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-full px-4 py-[0.6875rem] text-[0.8125rem] font-medium tracking-[0.006rem] transition ${
                   isActive
-                    ? 'bg-secondary-container text-on-secondary-container'
+                    ? 'bg-primary-container text-on-primary-container'
                     : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface'
                 }`
               }
@@ -282,7 +292,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-full px-4 py-[0.6875rem] text-[0.8125rem] font-medium tracking-[0.006rem] transition ${
                     isActive
-                      ? 'bg-secondary-container text-on-secondary-container'
+                      ? 'bg-primary-container text-on-primary-container'
                       : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface'
                   }`
                 }
@@ -301,7 +311,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-full px-4 py-[0.6875rem] text-[0.8125rem] font-medium tracking-[0.006rem] transition ${
                     isActive
-                      ? 'bg-secondary-container text-on-secondary-container'
+                      ? 'bg-primary-container text-on-primary-container'
                       : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface'
                   }`
                 }
@@ -319,7 +329,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-full px-4 py-[0.6875rem] text-[0.8125rem] font-medium tracking-[0.006rem] transition ${
                     isActive
-                      ? 'bg-secondary-container text-on-secondary-container'
+                      ? 'bg-primary-container text-on-primary-container'
                       : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface'
                   }`
                 }
@@ -338,7 +348,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-full px-4 py-[0.6875rem] text-[0.8125rem] font-medium tracking-[0.006rem] transition ${
                     isActive
-                      ? 'bg-secondary-container text-on-secondary-container'
+                      ? 'bg-primary-container text-on-primary-container'
                       : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface'
                   }`
                 }
@@ -356,7 +366,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-full px-4 py-[0.6875rem] text-[0.8125rem] font-medium tracking-[0.006rem] transition ${
                   isActive
-                    ? 'bg-secondary-container text-on-secondary-container'
+                    ? 'bg-primary-container text-on-primary-container'
                     : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface'
                 }`
               }
@@ -371,6 +381,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           </nav>
         </>
       )}
+      </div>
 
       {/* User card */}
       <div className="mx-3 mb-4 mt-2 rounded-[20px] border border-outline-variant/50 bg-surface-container px-4 py-4">
@@ -392,7 +403,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
 
         {/* Role badge */}
         {role && (
-          <div className="mt-2.5 inline-flex items-center rounded-full border border-secondary/20 bg-secondary-container/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-on-secondary-container">
+          <div className={`mt-2.5 ${md3NeutralChipClass} text-[10px] uppercase tracking-wider`}>
             {roleBadgeText}
           </div>
         )}

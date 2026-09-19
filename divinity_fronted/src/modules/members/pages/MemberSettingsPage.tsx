@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 
 import { useOrgStore } from '@/app/store/org';
 import { useToast } from '@/shared/hooks/useToast';
+import { ScrollableTableWrapper } from '@/shared/components/ScrollableTableWrapper';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3DestructiveButtonClass,
   md3FilledButtonClass,
   md3HeadlineSmallClass,
   md3InputLabelClass,
+  md3ModalBackdropClass,
+  md3ModalPanelAnimClass,
   md3OutlinedButtonClass,
   md3OverlineClass,
   md3SurfaceClass,
@@ -86,14 +90,14 @@ const CustomFieldModal = ({
         await createField.mutateAsync(form);
       }
       onClose();
-    } catch {
-      setError('Error al guardar el campo. Verifica los datos.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Error al guardar el campo. Verifica los datos.'));
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl`}>
         <div className="p-6 sm:p-8">
           <div className="mb-6 flex items-center justify-between gap-4">
             <h3 className={md3TitleMediumClass}>
@@ -256,23 +260,35 @@ export const MemberSettingsPage = () => {
     setLocalConfigs((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
 
   const handleSaveStandard = async () => {
-    await updateFieldConfig.mutateAsync(localConfigs);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    try {
+      await updateFieldConfig.mutateAsync(localConfigs);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudieron guardar los cambios.'), 'error');
+    }
   };
 
   const handleDelete = async (id: number) => {
-    await deleteCustomField.mutateAsync(id);
-    setConfirmDeleteId(null);
+    try {
+      await deleteCustomField.mutateAsync(id);
+      setConfirmDeleteId(null);
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo eliminar el campo.'), 'error');
+    }
   };
 
   const handleApplyRecommended = async () => {
-    const result = await applyRecommended.mutateAsync();
-    showToast(
-      result.created > 0
-        ? `Se activaron ${result.created} campos recomendados.`
-        : 'Ya tenías todos los campos recomendados configurados.',
-    );
+    try {
+      const result = await applyRecommended.mutateAsync();
+      showToast(
+        result.created > 0
+          ? `Se activaron ${result.created} campos recomendados.`
+          : 'Ya tenías todos los campos recomendados configurados.',
+      );
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo aplicar la configuración recomendada.'), 'error');
+    }
   };
 
   if (role && role !== 'admin') return null;
@@ -329,7 +345,7 @@ export const MemberSettingsPage = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-[16px] border border-outline-variant">
+            <ScrollableTableWrapper className="rounded-[16px] border border-outline-variant">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-outline-variant bg-surface-container">
@@ -377,7 +393,7 @@ export const MemberSettingsPage = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollableTableWrapper>
 
             <div className="mt-4 flex justify-end">
               <button

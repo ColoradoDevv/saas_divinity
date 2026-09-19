@@ -16,19 +16,12 @@ import {
   md3SurfaceClass,
   md3TextFieldClass,
 } from '@/shared/ui/material';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 
 import { useForgotPassword } from '../hooks/useForgotPassword';
 
-interface ErrorWithDetail {
-  response?: { data?: { detail?: string } };
-}
-
-const getErrorMessage = (error: unknown): string => {
-  const detail = (error as ErrorWithDetail).response?.data?.detail;
-  return typeof detail === 'string'
-    ? detail
-    : 'Ocurrió un error. Inténtalo de nuevo en unos minutos.';
-};
+const getErrorMessage = (error: unknown): string =>
+  getApiErrorMessage(error, 'Ocurrió un error. Inténtalo de nuevo en unos minutos.');
 
 export const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');

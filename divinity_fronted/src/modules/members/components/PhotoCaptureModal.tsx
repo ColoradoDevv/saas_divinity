@@ -154,8 +154,8 @@ export const PhotoCaptureModal = ({ onConfirm, onCancel }: Props) => {
   }, [stopCamera, onCancel]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md overflow-hidden rounded-[28px] bg-surface shadow-2xl">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-md overflow-hidden rounded-[28px] bg-surface shadow-2xl animate-scale-in">
         <div className="p-6">
           {/* Header */}
           <div className="mb-4 flex items-center justify-between gap-4">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useOrgStore } from '@/app/store/org';
@@ -26,10 +26,12 @@ import {
   useMemberBilling,
   useResumeSubscription,
 } from '@/modules/billing/hooks/useBilling';
-import { SUBSCRIPTION_STATUS_CONFIG } from '@/modules/billing/constants';
+import { PAYMENT_METHOD_LABELS, SUBSCRIPTION_STATUS_CONFIG } from '@/modules/billing/constants';
 import { RenewModal } from '@/modules/billing/components/RenewModal';
 import { useCurrencyFormatter } from '@/shared/hooks/useCurrencyFormatter';
 import { useToast } from '@/shared/hooks/useToast';
+import { ScrollableTableWrapper } from '@/shared/components/ScrollableTableWrapper';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import { MemberFormModal } from '../components/MemberFormModal';
 import { MemberQRCode } from '../components/MemberQRCode';
 import { useActivatePortalAccess, useDeactivateMember, useMember } from '../hooks/useMembers';
@@ -52,119 +54,6 @@ const FieldRow = ({ label, value }: { label: string; value: string | null | unde
   </div>
 );
 
-// ─── Renovar membresía ────────────────────────────────────────────────────────
-
-const RenewModal = ({ memberId, onClose }: { memberId: number; onClose: () => void }) => {
-  const { data: plans = [] } = usePlans(true);
-  const renew = useRenewMembership(memberId);
-  const formatMoney = useCurrencyFormatter();
-
-  const [planId, setPlanId] = useState<number | null>(null);
-  const [method, setMethod] = useState<PaymentMethod>('cash');
-  const [amount, setAmount] = useState('');
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (plans.length > 0 && planId === null) {
-      setPlanId(plans[0].id);
-      setAmount(plans[0].price);
-    }
-  }, [plans, planId]);
-
-  const selectedPlan = plans.find((p) => p.id === planId);
-
-  const handleSubmit = async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    if (!planId) return;
-    setError('');
-    try {
-      await renew.mutateAsync({ member_id: memberId, plan_id: planId, method, amount: amount || undefined, notes });
-      onClose();
-    } catch {
-      setError('Error al renovar la membresía. Verifica los datos.');
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-md shadow-2xl`}>
-        <div className="p-6 sm:p-8">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <h3 className={md3TitleMediumClass}>Renovar membresía</h3>
-            <button type="button" onClick={onClose} className="rounded-full p-1.5 text-on-surface-variant hover:bg-on-surface/8 transition">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {plans.length === 0 ? (
-            <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
-              No hay planes activos. Crea uno primero en Configuración → Planes de membresía.
-            </p>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className={md3InputLabelClass}>Plan *</label>
-                <select className={`${md3TextFieldClass} appearance-none`}
-                  value={planId ?? ''}
-                  onChange={(e) => {
-                    const id = Number(e.target.value);
-                    setPlanId(id);
-                    setAmount(plans.find((p) => p.id === id)?.price ?? '');
-                  }}>
-                  {plans.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name} — {formatMoney(p.price)}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={md3InputLabelClass}>Monto cobrado</label>
-                  <input type="number" min="0" step="0.01" className={md3TextFieldClass}
-                    value={amount} onChange={(e) => setAmount(e.target.value)} />
-                </div>
-                <div>
-                  <label className={md3InputLabelClass}>Método de pago</label>
-                  <select className={`${md3TextFieldClass} appearance-none`}
-                    value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
-                    {Object.entries(PAYMENT_METHOD_LABELS).map(([val, lbl]) => (
-                      <option key={val} value={val}>{lbl}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className={md3InputLabelClass}>Notas</label>
-                <input className={md3TextFieldClass} placeholder="Opcional"
-                  value={notes} onChange={(e) => setNotes(e.target.value)} />
-              </div>
-
-              {selectedPlan && (
-                <p className={`text-on-surface-variant ${md3BodyMediumClass}`}>
-                  Vence en {selectedPlan.duration_value} {DURATION_UNIT_LABELS[selectedPlan.duration_unit]} desde hoy.
-                </p>
-              )}
-
-              {error && <p className={`text-error ${md3BodyMediumClass}`}>{error}</p>}
-
-              <div className="flex gap-3 pt-2">
-                <button type="submit" className={`${md3FilledButtonClass} flex-1`} disabled={renew.isPending}>
-                  {renew.isPending ? 'Guardando...' : 'Confirmar renovación'}
-                </button>
-                <button type="button" onClick={onClose} className={md3OutlinedButtonClass}>Cancelar</button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // ─── Sección Acceso al portal ─────────────────────────────────────────────────
 
 const PortalAccessSection = ({ member }: { member: Member }) => {
@@ -177,8 +66,8 @@ const PortalAccessSection = ({ member }: { member: Member }) => {
       await activatePortalAccess.mutateAsync(member.id);
       showToast('Invitación enviada por email.');
       setConfirmResend(false);
-    } catch {
-      showToast('No se pudo enviar la invitación.', 'error');
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo enviar la invitación.'), 'error');
     }
   };
 
@@ -233,7 +122,7 @@ const BiometricEnrollmentSection = ({ member }: { member: Member }) => {
   const [error, setError] = useState('');
 
   const createEnrollment = useCreateEnrollment(selectedDeviceId === '' ? 0 : selectedDeviceId);
-  const deleteEnrollment = useDeleteEnrollment(selectedDeviceId === '' ? 0 : selectedDeviceId);
+  const deleteEnrollment = useDeleteEnrollment();
 
   const enrolledDeviceIds = new Set(enrollments.map((e) => e.device_id));
   const availableDevices = devices.filter((d) => d.is_active && !enrolledDeviceIds.has(d.id));
@@ -251,15 +140,18 @@ const BiometricEnrollmentSection = ({ member }: { member: Member }) => {
       setShowForm(false);
       setExternalUserId('');
       setSelectedDeviceId('');
-    } catch {
-      setError('No se pudo enrolar (¿ese id ya está en uso en este dispositivo?).');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'No se pudo enrolar (¿ese id ya está en uso en este dispositivo?).'));
     }
   };
 
   const handleRemove = async (enrollmentId: number, deviceId: number) => {
-    setSelectedDeviceId(deviceId);
-    await deleteEnrollment.mutateAsync(enrollmentId);
-    showToast('Enrolamiento eliminado.');
+    try {
+      await deleteEnrollment.mutateAsync({ deviceId, enrollmentId });
+      showToast('Enrolamiento eliminado.');
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo eliminar el enrolamiento.'), 'error');
+    }
   };
 
   return (
@@ -346,6 +238,7 @@ const MembershipSection = ({ memberId, canManage }: { memberId: number; canManag
   const freeze = useFreezeSubscription(memberId);
   const resume = useResumeSubscription(memberId);
   const formatMoney = useCurrencyFormatter();
+  const showToast = useToast();
   const [showRenew, setShowRenew] = useState(false);
 
   const current = billing?.current_subscription ?? null;
@@ -387,13 +280,17 @@ const MembershipSection = ({ memberId, canManage }: { memberId: number; canManag
           {canManage && (
             <div className="flex gap-2">
               {current.status === 'active' && (
-                <button type="button" onClick={() => freeze.mutate(current.id)}
+                <button type="button" onClick={() => freeze.mutate(current.id, {
+                  onError: (err) => showToast(getApiErrorMessage(err, 'No se pudo congelar la membresía.'), 'error'),
+                })}
                   disabled={freeze.isPending} className={md3OutlinedButtonClass}>
                   {freeze.isPending ? 'Congelando...' : 'Congelar'}
                 </button>
               )}
               {current.status === 'frozen' && (
-                <button type="button" onClick={() => resume.mutate(current.id)}
+                <button type="button" onClick={() => resume.mutate(current.id, {
+                  onError: (err) => showToast(getApiErrorMessage(err, 'No se pudo reanudar la membresía.'), 'error'),
+                })}
                   disabled={resume.isPending} className={md3OutlinedButtonClass}>
                   {resume.isPending ? 'Reanudando...' : 'Reanudar'}
                 </button>
@@ -406,7 +303,7 @@ const MembershipSection = ({ memberId, canManage }: { memberId: number; canManag
       {billing && billing.payments.length > 0 && (
         <div className="mt-6">
           <h3 className={`mb-3 text-on-surface-variant ${md3BodyMediumClass}`}>Historial de pagos</h3>
-          <div className="overflow-x-auto rounded-[16px] border border-outline-variant">
+          <ScrollableTableWrapper className="rounded-[16px] border border-outline-variant">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-outline-variant bg-surface-container">
@@ -425,7 +322,7 @@ const MembershipSection = ({ memberId, canManage }: { memberId: number; canManag
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollableTableWrapper>
         </div>
       )}
     </section>
@@ -447,14 +344,19 @@ export const MemberDetailPage = () => {
 
   const { data: member, isLoading, isError } = useMember(Number(id));
   const deactivate = useDeactivateMember();
+  const showToast = useToast();
 
   const [showEdit, setShowEdit] = useState(false);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
 
   const handleDeactivate = async () => {
     if (!member) return;
-    await deactivate.mutateAsync(member.id);
-    navigate('/members');
+    try {
+      await deactivate.mutateAsync(member.id);
+      navigate('/members');
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo desactivar al miembro.'), 'error');
+    }
   };
 
   if (isLoading) {

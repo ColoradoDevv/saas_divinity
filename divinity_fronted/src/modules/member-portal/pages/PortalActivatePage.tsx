@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import { useMemberPortalAuthStore } from '@/app/store/memberPortalAuth';
+import { PasswordInput } from '@/shared/components/PasswordInput';
 import {
   md3BodyMediumClass,
   md3ErrorBannerClass,
@@ -12,6 +13,7 @@ import {
   md3SurfaceClass,
   md3TextFieldClass,
 } from '@/shared/ui/material';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import { usePortalAcceptInvite } from '../hooks/useMemberPortal';
 
 export const PortalActivatePage = () => {
@@ -40,8 +42,8 @@ export const PortalActivatePage = () => {
     try {
       await acceptInvite.mutateAsync({ token: token ?? '', password });
       navigate('/portal', { replace: true });
-    } catch {
-      setError('Este link no es válido o ya expiró. Pide una nueva invitación al staff.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Este link no es válido o ya expiró. Pide una nueva invitación al staff.'));
     }
   };
 
@@ -57,9 +59,8 @@ export const PortalActivatePage = () => {
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label className={md3InputLabelClass}>Nueva contraseña</label>
-            <input
+            <PasswordInput
               required
-              type="password"
               minLength={8}
               className={md3TextFieldClass}
               value={password}
@@ -68,9 +69,8 @@ export const PortalActivatePage = () => {
           </div>
           <div>
             <label className={md3InputLabelClass}>Confirmar contraseña</label>
-            <input
+            <PasswordInput
               required
-              type="password"
               minLength={8}
               className={md3TextFieldClass}
               value={confirmPassword}

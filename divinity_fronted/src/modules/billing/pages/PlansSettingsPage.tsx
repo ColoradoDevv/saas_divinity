@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useOrgStore } from '@/app/store/org';
+import { CurrencyInput } from '@/shared/components/CurrencyInput';
 import { useCurrencyFormatter } from '@/shared/hooks/useCurrencyFormatter';
+import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3FilledButtonClass,
   md3HeadlineSmallClass,
   md3InputLabelClass,
+  md3ModalBackdropClass,
+  md3ModalPanelAnimClass,
   md3OutlinedButtonClass,
   md3OverlineClass,
   md3SurfaceClass,
@@ -47,16 +52,16 @@ const PlanModal = ({ editing, onClose }: { editing: Plan | null; onClose: () => 
         await createPlan.mutateAsync(form);
       }
       onClose();
-    } catch {
-      setError('Error al guardar el plan. Verifica que el nombre no esté repetido.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Error al guardar el plan. Verifica que el nombre no esté repetido.'));
     }
   };
 
   const isPending = createPlan.isPending || updatePlan.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-md shadow-2xl`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-md shadow-2xl`}>
         <div className="p-6 sm:p-8">
           <div className="mb-6 flex items-center justify-between gap-4">
             <h3 className={md3TitleMediumClass}>{editing ? 'Editar plan' : 'Nuevo plan'}</h3>
@@ -83,8 +88,8 @@ const PlanModal = ({ editing, onClose }: { editing: Plan | null; onClose: () => 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={md3InputLabelClass}>Precio *</label>
-                <input required type="number" min="0" step="0.01" className={md3TextFieldClass}
-                  value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
+                <CurrencyInput required value={form.price}
+                  onChange={(v) => setForm((p) => ({ ...p, price: v }))} />
               </div>
               <div>
                 <label className={md3InputLabelClass}>Duración</label>
@@ -131,14 +136,19 @@ export const PlansSettingsPage = () => {
 
   const { data: plans = [], isLoading } = usePlans();
   const deactivatePlan = useDeactivatePlan();
+  const showToast = useToast();
   const [modal, setModal] = useState<{ open: boolean; editing: Plan | null }>({ open: false, editing: null });
   const [confirmId, setConfirmId] = useState<number | null>(null);
 
   if (role && role !== 'admin') return null;
 
   const handleDeactivate = async (id: number) => {
-    await deactivatePlan.mutateAsync(id);
-    setConfirmId(null);
+    try {
+      await deactivatePlan.mutateAsync(id);
+      setConfirmId(null);
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'No se pudo desactivar el plan.'), 'error');
+    }
   };
 
   return (

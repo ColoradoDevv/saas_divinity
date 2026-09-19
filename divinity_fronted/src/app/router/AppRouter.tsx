@@ -73,10 +73,12 @@ export const AppRouter = () => {
     document.documentElement.classList.toggle('dark', isDark);
   }, [isDark]);
 
-  // Aplicar color primario de la organización al rehidratar
+  // Aplicar color primario de la organización al rehidratar — también se
+  // recalcula al cambiar de modo claro/oscuro, porque la familia tonal
+  // derivada es distinta en cada uno.
   useEffect(() => {
-    applyOrgColor(organization?.primary_color);
-  }, [organization?.primary_color]);
+    applyOrgColor(organization?.primary_color, isDark);
+  }, [organization?.primary_color, isDark]);
 
   // Favicon y título dinámicos: usa el logo y nombre de la org cuando están disponibles
   useEffect(() => {

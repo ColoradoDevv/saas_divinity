@@ -18,6 +18,9 @@ import type {
   Worker,
 } from '../types';
 import { useOrgStore } from '@/app/store/org';
+import { PasswordInput } from '@/shared/components/PasswordInput';
+import { useToast } from '@/shared/hooks/useToast';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import {
   md3BodyMediumClass,
   md3CardClass,
@@ -25,6 +28,8 @@ import {
   md3HeadlineMediumClass,
   md3InputLabelClass,
   md3LabelLargeClass,
+  md3ModalBackdropClass,
+  md3ModalPanelAnimClass,
   md3OutlinedButtonClass,
   md3OverlineClass,
   md3SurfaceClass,
@@ -310,13 +315,15 @@ const WorkerEditModal = ({
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
-    await updateWorker.mutateAsync({ id: worker.id, payload: form });
-    onClose();
+    try {
+      await updateWorker.mutateAsync({ id: worker.id, payload: form });
+      onClose();
+    } catch { /* error shown below */ }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-xl max-h-[92vh] overflow-y-auto shadow-2xl`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-xl max-h-[92vh] overflow-y-auto shadow-2xl`}>
         {/* Sticky header */}
         <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-outline-variant/40 bg-inherit px-6 py-4">
           <div className="flex items-center gap-3">
@@ -388,7 +395,7 @@ const WorkerEditModal = ({
 
           {updateWorker.isError && (
             <div className="rounded-xl bg-error-container/50 px-4 py-3 text-sm text-on-error-container">
-              Ocurrió un error al guardar. Inténtalo de nuevo.
+              {getApiErrorMessage(updateWorker.error, 'Ocurrió un error al guardar. Inténtalo de nuevo.')}
             </div>
           )}
 
@@ -428,8 +435,8 @@ const CredentialsModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-md p-6 shadow-2xl`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-md p-6 shadow-2xl`}>
         <div className="mb-5 flex items-start gap-3">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-container">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-on-primary-container">
@@ -558,8 +565,8 @@ const WorkerFormModal = ({
   const showPasswordField = form.create_account && form.credential_type === 'gmail' && form.password_type === 'manual';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-xl max-h-[92vh] overflow-y-auto shadow-2xl`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-xl max-h-[92vh] overflow-y-auto shadow-2xl`}>
         {/* Sticky header */}
         <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-outline-variant/40 bg-inherit px-6 py-4">
           <div>
@@ -577,7 +584,7 @@ const WorkerFormModal = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {createWorker.isError && (
             <div className="rounded-xl bg-error-container/50 px-4 py-3 text-sm text-on-error-container">
-              No se pudo crear el trabajador. Verifica que el correo no esté registrado.
+              {getApiErrorMessage(createWorker.error, 'No se pudo crear el trabajador. Verifica que el correo no esté registrado.')}
             </div>
           )}
 
@@ -711,7 +718,7 @@ const WorkerFormModal = ({
                 {showPasswordField && (
                   <div>
                     <label className={md3InputLabelClass}>Contraseña inicial *</label>
-                    <input type="password" required minLength={8} className={md3TextFieldClass}
+                    <PasswordInput required minLength={8} className={md3TextFieldClass}
                       value={form.password}
                       onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
                     <p className="mt-1 text-xs text-on-surface-variant">Mínimo 8 caracteres.</p>
@@ -789,8 +796,8 @@ const TaskFormModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className={`${md3SurfaceClass} w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl`}>
+    <div className={md3ModalBackdropClass}>
+      <div className={`${md3SurfaceClass} ${md3ModalPanelAnimClass} w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl`}>
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-outline-variant/40 bg-inherit px-6 py-4">
           <div className="flex items-center gap-3">
@@ -817,7 +824,7 @@ const TaskFormModal = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {createTask.isError && (
             <div className="rounded-xl bg-error-container/50 px-4 py-3 text-sm text-on-error-container">
-              Ocurrió un error al crear la tarea. Inténtalo de nuevo.
+              {getApiErrorMessage(createTask.error, 'Ocurrió un error al crear la tarea. Inténtalo de nuevo.')}
             </div>
           )}
 
@@ -947,6 +954,7 @@ const TaskFormModal = ({
 const TaskCard = ({ task }: { task: Task }) => {
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const showToast = useToast();
 
   const nextStatus: Record<Task['status'], Task['status']> = {
     pending: 'in_progress', in_progress: 'done', done: 'pending', cancelled: 'pending',
@@ -977,12 +985,16 @@ const TaskCard = ({ task }: { task: Task }) => {
         <div className="flex flex-shrink-0 gap-1">
           {task.status !== 'done' && task.status !== 'cancelled' && (
             <button type="button"
-              onClick={() => updateTask.mutate({ id: task.id, payload: { status: nextStatus[task.status] } })}
+              onClick={() => updateTask.mutate({ id: task.id, payload: { status: nextStatus[task.status] } }, {
+                onError: (err) => showToast(getApiErrorMessage(err, 'No se pudo actualizar la tarea.'), 'error'),
+              })}
               className="rounded-full px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/8 transition">
               {task.status === 'pending' ? 'Iniciar' : 'Completar'}
             </button>
           )}
-          <button type="button" onClick={() => deleteTask.mutate(task.id)}
+          <button type="button" onClick={() => deleteTask.mutate(task.id, {
+            onError: (err) => showToast(getApiErrorMessage(err, 'No se pudo eliminar la tarea.'), 'error'),
+          })}
             className="rounded-full px-2 py-1.5 text-xs font-medium text-error hover:bg-error/8 transition">✕</button>
         </div>
       </div>
@@ -996,6 +1008,7 @@ export const WorkersPage = () => {
   const { data: workers = [], isLoading: loadingWorkers } = useWorkers();
   const { data: allTasks = [] } = useTasks();
   const deleteWorker = useDeleteWorker();
+  const showToast = useToast();
   const organization = useOrgStore((state) => state.organization);
   const role = useOrgStore((state) => state.role);
   const orgModules = organization?.enabled_modules ?? [];
@@ -1183,7 +1196,12 @@ export const WorkersPage = () => {
                           <>
                             <span className="mr-auto text-xs text-error">¿Eliminar a {worker.first_name}?</span>
                             <button type="button"
-                              onClick={() => { deleteWorker.mutate(worker.id); setConfirmDeleteId(null); }}
+                              onClick={() => {
+                                deleteWorker.mutate(worker.id, {
+                                  onError: (err) => showToast(getApiErrorMessage(err, 'No se pudo eliminar al trabajador.'), 'error'),
+                                });
+                                setConfirmDeleteId(null);
+                              }}
                               className="rounded-full px-3 py-1 text-xs font-semibold text-error hover:bg-error/10 transition">
                               Sí, eliminar
                             </button>

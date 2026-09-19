@@ -221,7 +221,13 @@ class ClassRepositoryInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_session_by_id(self, session_id: int, organization_id: int) -> Optional[ClassSession]:
+    def get_session_by_id(
+        self, session_id: int, organization_id: int, *, lock: bool = False
+    ) -> Optional[ClassSession]:
+        """`lock=True` toma un lock de fila (SELECT ... FOR UPDATE) — usarlo dentro de una
+        transacción cuando la lectura precede a una decisión de capacidad (inscribir), para
+        que dos inscripciones concurrentes no lean el mismo cupo disponible antes de que
+        cualquiera de las dos confirme."""
         raise NotImplementedError
 
     @abstractmethod

@@ -212,9 +212,18 @@ class ActivatePortalAccessView(APIView):
 
         UserModel = get_user_model()
         if member.user_id is None:
+            if MemberModel.objects.filter(user__email__iexact=member.email).exclude(pk=member.pk).exists():
+                # El login del portal busca por email sin distinguir organización —
+                # dos miembros (de la misma o distinta organización) no pueden
+                # compartir el correo de su cuenta de portal, o el login quedaría
+                # ambiguo entre ambos.
+                raise ValidationError({
+                    'email': 'Ese correo ya tiene acceso al portal con otra cuenta de miembro. '
+                             'Usa un correo distinto para este miembro.'
+                })
             if UserModel.objects.filter(email__iexact=member.email).exists():
                 raise ValidationError({
-                    'email': 'Ya existe una cuenta de sistema con este correo, no se puede activar el portal.'
+                    'email': 'Ya existe una cuenta de sistema (staff/admin) con este correo, no se puede activar el portal.'
                 })
             user = UserModel.objects.create_user(
                 username=f'member-{member.organization_id}-{member.id}',
@@ -226,6 +235,11 @@ class ActivatePortalAccessView(APIView):
             )
             member.user = user
             member.save(update_fields=['user'])
+
+        # Invalida cualquier invitación anterior sin usar: reenviar debe dejar un único
+        # link activo, para que uno viejo (reenviado a una bandeja comprometida, etc.)
+        # no pueda seguir usándose para tomar la cuenta después de que la nueva ya se usó.
+        MemberPortalInvitationModel.objects.filter(member=member, used=False).update(used=True)
 
         invitation = MemberPortalInvitationModel.objects.create(
             member=member,
